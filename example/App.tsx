@@ -9,7 +9,10 @@ const items = data.map(m => ({
 
 const characterItems = order.map(m => ({
   time: m.time,
-  content: m.characters.length === characters.length ? "合唱" : m.characters.map(c => characters[c].cv).join(' ')
+  content: m.characters.length === characters.length ? "合唱" : m.characters.map(c => characters[c].cv).join(' '),
+  style: {
+    background: `linear-gradient(90deg, ${m.characters.map(m => characters[m].color).join(',')})`
+  }
 }))
 
 function App() {
@@ -39,7 +42,9 @@ function App() {
         totalTime={91} />
 
       <Component items={items} currentTime={currentTime} scale={10} totalTime={audio.current?.duration} />
-      <Component items={characterItems} currentTime={currentTime} scale={5} totalTime={audio.current?.duration} />
+      <Component items={characterItems} currentTime={currentTime} scale={5} totalTime={audio.current?.duration} itemStyle={{
+        color: 'white'
+      }} />
       <audio src='/index.mp3' controls ref={audio} style={{ width: '100%' }} />
     </>
   );

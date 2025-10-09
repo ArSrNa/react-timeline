@@ -19,6 +19,17 @@ export default defineConfig({
       usePolling: true, // 修复HMR热更新失效
     },
   },
+  build: {
+    rollupOptions: {
+      external: ['react', 'react-dom'],
+      output: {
+        globals: {
+          react: 'React',
+          'react-dom': 'ReactDOM',
+        },
+      },
+    },
+  },
   plugins: [react(), typescript({
     compilerOptions: {
       target: "esnext", // 指定ECMAScript目标版本
@@ -44,30 +55,5 @@ export default defineConfig({
       resolve("**/*.scss"),
       resolve("**/*.module.scss"),
     ],
-  }),],
-  build: {
-    cssCodeSplit: false,
-    // 打包输出的目录
-    outDir: 'dist',
-    // 防止 vite 将 rgba() 颜色转化为 #RGBA 十六进制
-    cssTarget: 'chrome61',
-    lib: {
-      // 组件库源码的入口文件
-      entry: resolve('packages/index.ts'),
-      // 组件库名称
-      name: 'index',
-      fileName: 'index',
-    },
-    rollupOptions: {
-      // 确保外部化处理那些你不想打包进库的依赖
-      external: ['react', 'react-dom', 'typescript'],
-      output: {
-        // 在 UMD 构建模式下为这些外部化的依赖提供一个全局变量
-        globals: {
-          react: 'react',
-          'react-dom': 'react-dom',
-        },
-      },
-    },
-  },
+  })],
 });

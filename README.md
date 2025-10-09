@@ -12,10 +12,20 @@ npm install react-av-timeline
 
 ## 使用
 
+首先引入组件，由于css未注入，需要手动引入css
+
+````jsx
+import { Timeline } from 'react-av-timeline';
+import 'react-av-timeline/dist/index.css';
+````
+
 ````jsx
 <Component items={[{
         time:1,
-        content:'这是第一秒展示的内容'
+        content:'这是第一秒展示的内容',
+        style:{
+            background: "#EAEAAD"
+        }
     },{
         time:69,
         content:'这是第69秒展示的内容'
