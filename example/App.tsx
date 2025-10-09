@@ -1,5 +1,7 @@
 import { SyntheticEvent, useEffect, useRef, useState } from 'react';
 import Component from '../packages/Component';
+// import Component from '../dist';
+// import '../dist/index.css';
 import './index.scss'
 import { characters, data, order } from './data';
 
