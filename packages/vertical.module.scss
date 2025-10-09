@@ -1,25 +1,21 @@
 .timeline {
-    position: relative;
     overflow: clip;
-    width: 100%;
+    position: relative;
+    height: 200px;
 
     &-items {
         transform: translate(var(--translate));
         display: flex;
+        flex-direction: column;
         transition: all 0.13s;
-        height: 100%;
-        width: 100%;
     }
 
     &-item {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: black;
         background: var(--bg);
-        flex-shrink: 0;
-        border-right: 2px solid white;
-        box-sizing: border-box;
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         white-space: nowrap;
     }
 
@@ -27,9 +23,8 @@
         z-index: 1;
         position: absolute;
         top: 0;
-        left: 50%;
         background-color: black;
-        transform: translateX(-50%);
+        // transform: translateX(-50%);
         width: 3px;
         opacity: 0.4;
         height: 100%;

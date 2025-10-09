@@ -1,24 +1,12 @@
-import { CSSProperties, HTMLAttributes, ReactNode, useEffect, useRef } from 'react'
+import { CSSProperties } from 'react'
 import style from './index.module.scss'
-import { getDuration, randomRGBColor } from './utils'
-export interface itemsType {
-    time: number,
-    style?: CSSProperties
-    content?: ReactNode
-}
+import { getDuration, PropsType, randomRGBColor } from './utils'
 
-const colors = new Array(10).fill(0).map(randomRGBColor);
+const colors = new Array(20).fill(0).map(randomRGBColor);
 
 export default function Component({
     items, currentTime, totalTime, scale = 1, indicator, itemStyle
-}: {
-    items: itemsType[],
-    itemStyle?: CSSProperties
-    currentTime: number
-    totalTime: number,
-    scale?: number
-    indicator?: HTMLAttributes<HTMLDivElement>
-}) {
+}: PropsType) {
 
     const timeArray = items.map(m => m.time);
     return <div className={style.timeline}>
@@ -33,10 +21,11 @@ export default function Component({
                 const width = (itemDuration / totalTime) * scale * 100 + '%';
 
                 return <span className={style['timeline-item']} style={{
-                    '--bg': item.style?.background || colors[index > 10 ? index % 10 : index],
+                    '--bg': item.style?.background || colors[index % 20],
                     width,
+                    left: width,
                     ...itemStyle
-                } as CSSProperties} >
+                } as CSSProperties}>
                     {item.content}
                 </span>
             })}
