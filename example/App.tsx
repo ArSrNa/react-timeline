@@ -27,6 +27,17 @@ function App() {
 
   return (
     <>
+      <Component items={[{
+        time: 1,
+        content: '这是第一秒展示的内容'
+      }, {
+        time: 69,
+        content: '这是第69秒展示的内容'
+      }]}
+        currentTime={0}
+        scale={0.2}
+        totalTime={91} />
+
       <Component items={items} currentTime={currentTime} scale={10} totalTime={audio.current?.duration} />
       <Component items={characterItems} currentTime={currentTime} scale={5} totalTime={audio.current?.duration} />
       <audio src='/index.mp3' controls ref={audio} style={{ width: '100%' }} />

@@ -1,7 +1,7 @@
 {
-  "name": "react-fade-slider",
-  "version": "1.3.1",
-  "description": "React 淡入淡出轮播组件",
+  "name": "react-av-timeline",
+  "version": "1.0.1",
+  "description": "React 音视频时间线组件",
   "type": "module",
   "files": [
     "dist"
@@ -18,13 +18,15 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://cnb.cool/arsrna/os/react-fade-slider"
+    "url": "https://cnb.cool/arsrna/os/react-timeline"
   },
   "keywords": [
-    "fade",
     "slider",
     "react",
-    "picture"
+    "timeline",
+    "audio",
+    "video",
+    "visualize"
   ],
   "scripts": {
     "build": "vite build",
@@ -33,9 +35,9 @@
   "author": "ArSrNa",
   "license": "GNU",
   "bugs": {
-    "url": "https://cnb.cool/arsrna/os/react-fade-slider/-/issues"
+    "url": "https://cnb.cool/arsrna/os/react-timeline/-/issues"
   },
-  "homepage": "https://os.arsrna.cn/demo/nodejs/react-fade-slider",
+  "homepage": "https://os.arsrna.cn/demo/nodejs/react-timeline",
   "devDependencies": {
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/node": "^24.3.1",
