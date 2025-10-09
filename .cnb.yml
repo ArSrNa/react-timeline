@@ -25,7 +25,7 @@ $:
           imports:
             - https://cnb.cool/arsrna/env/-/blob/main/git.yaml
           settings:
-            target_url: https://github.com/ArSrNa/os-vite-react-template.git
+            target_url: https://github.com/ArSrNa/react-timeline.git
             auth_type: https
             username: ${GIT_USERNAME}
             password: ${GIT_ACCESS_TOKEN}

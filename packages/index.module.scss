@@ -1,0 +1,36 @@
+.timeline {
+    position: relative;
+    overflow: clip;
+    width: 100%;
+
+    &-items {
+        transform: translate(var(--translate));
+        display: flex;
+        transition: all 0.13s;
+        height: 100%;
+        width: 100%;
+    }
+
+    &-item {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: black;
+        background-color: var(--bg);
+        flex-shrink: 0;
+        border-right: 2px solid white;
+        box-sizing: border-box;
+    }
+
+    &-indicator {
+        z-index: 1;
+        position: absolute;
+        top: 0;
+        left: 50%;
+        background-color: black;
+        transform: translateX(-50%);
+        width: 3px;
+        opacity: 0.4;
+        height: 100%;
+    }
+}
