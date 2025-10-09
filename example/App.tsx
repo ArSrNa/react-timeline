@@ -34,14 +34,23 @@ function App() {
     <>
       <Component items={[{
         time: 1,
-        content: '这是第一秒展示的内容'
+        content: '这是第1-13秒展示的内容'
+      }, {
+        time: 13,
+        content: '这是第13-69秒展示的内容'
       }, {
         time: 69,
-        content: '这是第69秒展示的内容'
+        content: '这是第69-78秒展示的内容'
+      }, {
+        time: 78,
+        content: '这是第78-91秒展示的内容'
+      }, {
+        time: 91,
+        content: '这是第91-最后一秒展示的内容'
       }]}
-        currentTime={0}
-        scale={0.2}
-        totalTime={91} />
+        currentTime={currentTime}
+        scale={2}
+        totalTime={audio.current?.duration} />
 
       <Component items={items} currentTime={currentTime} scale={10} totalTime={audio.current?.duration} />
       <Component items={characterItems} currentTime={currentTime} scale={5} totalTime={audio.current?.duration} itemStyle={{

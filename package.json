@@ -1,6 +1,6 @@
 {
   "name": "react-av-timeline",
-  "version": "1.1.2",
+  "version": "1.1.4",
   "description": "React 音视频时间线组件",
   "type": "module",
   "files": [
@@ -58,8 +58,8 @@
     "vite-plugin-sass": "^0.1.0"
   },
   "dependencies": {
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "typescript": "^5.9.3"
   }
 }
