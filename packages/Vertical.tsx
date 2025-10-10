@@ -9,8 +9,11 @@ export default function Component({
     height,
     left = 10
 }: PropsType & {
+    /**保留前几个项目 */
     prev?: number
+    /**距离左边距 */
     left?: number,
+    /**总高度 */
     height?: CSSProperties['height']
 }) {
 

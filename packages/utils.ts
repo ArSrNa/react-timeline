@@ -26,16 +26,25 @@ export function getNextElement<T>(item: T[], i: number, number: number = 1): T {
     else return item[i + number]
 }
 export interface PropsType {
+    /**时间轴 */
     items: itemsType[],
-    itemStyle?: CSSProperties
-    currentTime: number
+    /**时间轴样式 */
+    itemStyle?: CSSProperties,
+    /**当前时间点 */
+    currentTime: number,
+    /**总时长 */
     totalTime: number,
-    scale?: number
+    /**缩放比例 */
+    scale?: number,
+    /**时间轴指示器属性 */
     indicator?: HTMLAttributes<HTMLDivElement>
 }
 
 export interface itemsType {
+    /**时间点 */
     time: number,
-    style?: CSSProperties
+    /**该点对应的样式 */
+    style?: CSSProperties,
+    /**该点对应的文字 */
     content?: ReactNode
 }

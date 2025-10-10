@@ -13,6 +13,8 @@ $:
       runner:
         cpus: 16
       stages:
+        - name: 安装插件
+          script: code-server --install-extension yzhang.markdown-all-in-one
         - name: 安装依赖
           script: pnpm install
         - name: 构建
