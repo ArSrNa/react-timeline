@@ -12,8 +12,6 @@
     "strict": false,
     "jsx": "react-jsx",
     "sourceMap": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
   },
   "rootDir": "./",
   "include": [

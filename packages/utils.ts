@@ -8,10 +8,6 @@ export function randomRGBColor() {
 }
 
 export function getDuration(timeline: number[], i: number) {
-    if (i === 0) {
-        //处理时间不是从0开始的
-        return timeline[i + 1];
-    }
     if (i === timeline.length - 1) {
         return timeline[i] - timeline[i - 1];
     } else {

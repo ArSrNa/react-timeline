@@ -8,12 +8,19 @@ export default function Component({
     items, currentTime, totalTime, scale = 1, indicator, itemStyle
 }: PropsType) {
     items = items.filter(f => f.time >= 0)
+    //处理时间不是从0开始的
+    if (items[0].time !== 0) {
+        items.unshift({
+            time: 0,
+            content: undefined
+        })
+    }
     const timeArray = items.map(m => m.time);
     return <div className={style.timeline}>
         <div className={style['timeline-indicator']} {...indicator}></div>
         <div className={style['timeline-items']}
             style={{
-                '--translate': `${scale * 50 / scale - (((currentTime - 1) / totalTime) * scale * 100)}%`
+                '--translate': `${scale * 50 / scale - ((currentTime / totalTime) * scale * 100)}%`
             } as CSSProperties}
         >
             {items.map((item, index) => {
