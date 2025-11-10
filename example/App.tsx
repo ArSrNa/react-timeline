@@ -4,23 +4,23 @@ import './index.scss'
 import { characters, data, order } from './data';
 import { Vertical } from '../packages';
 
-const items = data.map(m => ({
-  time: m.t, content: m.c.trim() === '' ? "无歌词" : m.c
-}));
-
-const characterItems = order.map(m => ({
-  time: m.time,
-  content: m.characters.length === characters.length ? "合唱" : m.characters.map(c => characters[c].cv).join(' '),
-  style: {
-    background: `linear-gradient(90deg, ${m.characters.map(m => characters[m].color).join(',')})`
-  }
-}))
-
 function App() {
   const audio = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [vertical, setVertical] = useState(false);
   const totalTime = audio.current?.duration || 0;
+
+  const items = data.map(m => ({
+    time: m.t - 1, content: m.c.trim() === '' ? "无歌词" : m.c
+  }));
+
+  const characterItems = order.map(m => ({
+    time: m.time - 1,
+    content: m.characters.length === characters.length ? "合唱" : m.characters.map(c => characters[c].cv).join(' '),
+    style: {
+      background: `linear-gradient(90deg, ${m.characters.map(m => characters[m].color).join(',')})`
+    }
+  }))
 
   function ontimeupdate() {
     setCurrentTime(audio.current?.currentTime);

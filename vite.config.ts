@@ -26,15 +26,16 @@ export default defineConfig({
       lib: [
         "ES6",
         "DOM",
+        "ESNext"
       ],
       rootDir: "./packages",
       declaration: true, // 生成 `.d.ts` 文件
       outDir: "./dist", // 编译后生成的文件目录
       strict: false,
       jsx: "react-jsx",
-      noEmit: false, // 确保 noEmit 为 false（默认值）
+      noEmit: true, // 确保 noEmit 为 false（默认值）
       emitDeclarationOnly: false, // 确保 emitDeclarationOnly 为 false（默认值）
-      allowImportingTsExtensions: false, // 禁用该选项
+      allowImportingTsExtensions: true, // 禁用该选项
     },
     include: [
       resolve("./packages/**/*"),

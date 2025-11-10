@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "target": "es2023", // 指定ECMAScript目标版本
+    "target": "esnext", // 指定ECMAScript目标版本
     "lib": [
       "ES6",
       "DOM",
@@ -12,7 +12,8 @@
     "strict": false,
     "jsx": "react-jsx",
     "sourceMap": true,
-    "noEmit": false
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
   },
   "rootDir": "./",
   "include": [
