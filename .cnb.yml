@@ -4,21 +4,38 @@ $:
         - vscode
         - docker
       docker:
-        image: docker.cnb.cool/arsrna/dev-env/node22:latest
+        image: docker.cnb.cool/arsrna/dev-image/nodejs
         volumes:
+          - /root/.bun/install/cache
           - /root/.npm
-          - /root/.pnpm-store
       imports:
         - https://cnb.cool/arsrna/env/-/blob/main/npm.yml
       runner:
         cpus: 16
       stages:
+        - name: 配置wakatime
+          imports:
+            - https://cnb.cool/arsrna/env/-/blob/main/vscode.yml
+          script:
+            - echo "[settings]\n" > /root/.wakatime.cfg
+            - echo "api_key = ${WAKA_APIKEY}"  >> /root/.wakatime.cfg
         - name: 安装插件
           script: code-server --install-extension yzhang.markdown-all-in-one
         - name: 安装依赖
-          script: pnpm install
+          script: bun i
         - name: 构建
-          script: npm run build
+          script: bun run build
+        - name: 单测
+          script: bun test --coverage
+        - name: coverage
+          type: testing:coverage
+          options:
+            diffLines: 78 # 增量覆盖率红线
+          exports:
+            lines: LINES
+            diff_pct: DIFF_LINES
+        - name: result
+          script: echo echo "LINES $LINES DIFF_LINES $DIFF_LINES"
 
   push:
     - stages:
@@ -37,14 +54,14 @@ $:
   # tag push 时触发
   tag_push:
     - docker:
-        image: docker.cnb.cool/arsrna/dev-env/node22:latest
+        image: docker.cnb.cool/arsrna/dev-image/nodejs
       runner:
         cpus: 16
       stages:
         - name: 构建部署
           script:
-            - pnpm i
-            - npm run build
+            - bun i
+            - bun run build
             - echo $CNB_BRANCH
         - name: update version
           # 修改 package.json 中的version为当前tag，但不会提交代码

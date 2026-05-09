@@ -4,19 +4,24 @@
     height: 200px;
 
     &-items {
-        transform: translate(var(--translate));
-        display: flex;
-        flex-direction: column;
+        position: relative;
+        transform: translateX(var(--translate));
         transition: all 0.13s;
+        height: 100%;
+        width: 100%;
     }
 
     &-item {
         background: var(--bg);
-        position: relative;
+        position: absolute;
         display: flex;
         justify-content: center;
         align-items: center;
         white-space: nowrap;
+        height: 35px; // 每一行的高度
+        color: white;
+        padding: 0 10px;
+        box-sizing: border-box;
     }
 
     &-indicator {

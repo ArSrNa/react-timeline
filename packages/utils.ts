@@ -7,24 +7,6 @@ export function randomRGBColor() {
     return `rgb(${r},${g},${b})`;
 }
 
-export function getDuration(timeline: number[], i: number) {
-    if (i === timeline.length - 1) {
-        return timeline[i] - timeline[i - 1];
-    } else {
-        return timeline[i + 1] - timeline[i];
-    }
-}
-
-export function getPrevElement<T>(item: T[], i: number, number: number = 1): T {
-    if (i - number <= 0) return item[0]
-    else return item[i - number]
-}
-
-
-export function getNextElement<T>(item: T[], i: number, number: number = 1): T {
-    if (i + number >= item.length) return item.at(-1)
-    else return item[i + number]
-}
 export interface PropsType {
     /**时间轴 */
     items: itemsType[],
@@ -41,10 +23,12 @@ export interface PropsType {
 }
 
 export interface itemsType {
-    /**时间点 */
-    time: number,
+    /**时间点（自定义时间点，可以是毫秒也可以是秒，由时间轴totalTime控制） [起始,结束] 或 起始 */
+    time: number[] | number,
     /**该点对应的样式 */
     style?: CSSProperties,
-    /**该点对应的文字 */
-    content?: ReactNode
+    /**该点对应的内容 */
+    content?: ReactNode,
+    /** 指定显示的层级，level 越大越靠下。如果不指定，则自动计算。 */
+    level?: number
 }

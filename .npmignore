@@ -3,3 +3,5 @@ src/
 test/
 example/
 public/
+coverage/
+__tests__/

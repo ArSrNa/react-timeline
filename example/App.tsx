@@ -10,9 +10,6 @@ function App() {
   const [vertical, setVertical] = useState(false);
   const totalTime = audio.current?.duration || 0;
 
-  const items = data.map(m => ({
-    time: m.t, content: m.c.trim() === '' ? "无歌词" : m.c
-  }));
 
   const characterItems = order.map(m => ({
     time: m.time,
@@ -39,12 +36,16 @@ function App() {
         <input type='checkbox' onChange={(e) => setVertical(e.target.checked)} />
         <label>垂直时间线</label>
       </div>
-      {vertical && <Vertical height={190} left={20} items={items} currentTime={currentTime} scale={10} totalTime={totalTime} />}
+
+      <div>
+        {currentTime.toFixed(2)}
+      </div>
+
 
       {!vertical && <>
         <Component items={[{
-          time: 1,
-          content: '这是第1-13秒展示的内容'
+          time: [1, 10],
+          content: '这是第1-10秒展示的内容'
         }, {
           time: 13,
           content: '这是第13-69秒展示的内容'
@@ -65,10 +66,16 @@ function App() {
           scale={2}
           totalTime={totalTime} />
 
-        <Component items={items} currentTime={currentTime} scale={10} totalTime={totalTime} />
-        <Component items={characterItems} currentTime={currentTime} scale={10} totalTime={totalTime} itemStyle={{
-          color: 'white'
-        }} /></>}
+
+        <Component items={characterItems} currentTime={currentTime} scale={30} totalTime={totalTime}
+          itemStyle={{
+            color: 'white'
+          }} /></>}
+
+      <Component items={data} currentTime={currentTime} scale={30} totalTime={totalTime} />
+
+      {vertical && <Vertical left={20} items={data} currentTime={currentTime} scale={30} totalTime={totalTime} />}
+
     </>
   );
 }

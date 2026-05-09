@@ -4,14 +4,14 @@
     width: 100%;
 
     &-items {
+        position: relative;
         transform: translate(var(--translate));
-        display: flex;
         transition: all 0.13s;
-        height: 100%;
         width: 100%;
     }
 
     &-item {
+        position: absolute;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -21,6 +21,8 @@
         border-right: 2px solid white;
         box-sizing: border-box;
         white-space: nowrap;
+        height: 40px; // 每一层的高度
+        top: 0;
     }
 
     &-indicator {
