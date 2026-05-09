@@ -23,6 +23,30 @@ $:
           script: code-server --install-extension yzhang.markdown-all-in-one
         - name: 安装依赖
           script: bun i
+
+  push:
+    sync:
+      stages:
+        - name: sync to github
+          image: tencentcom/git-sync
+          imports:
+            - https://cnb.cool/arsrna/env/-/blob/main/git.yaml
+          settings:
+            target_url: https://github.com/ArSrNa/react-timeline.git
+            auth_type: https
+            username: ${GIT_USERNAME}
+            password: ${GIT_ACCESS_TOKEN}
+            git_email: "root@arsrna.cn"
+            force: true
+    cr:
+      docker:
+        image: docker.cnb.cool/arsrna/dev-image/nodejs
+        volumes:
+          - /root/.bun/install/cache
+          - /root/.npm
+      runner:
+        cpus: 16
+      stages:
         - name: 构建
           script: bun run build
         - name: 单测
@@ -36,20 +60,6 @@ $:
             diff_pct: DIFF_LINES
         - name: result
           script: echo echo "LINES $LINES DIFF_LINES $DIFF_LINES"
-
-  push:
-    - stages:
-        - name: sync to github
-          image: tencentcom/git-sync
-          imports:
-            - https://cnb.cool/arsrna/env/-/blob/main/git.yaml
-          settings:
-            target_url: https://github.com/ArSrNa/react-timeline.git
-            auth_type: https
-            username: ${GIT_USERNAME}
-            password: ${GIT_ACCESS_TOKEN}
-            git_email: "root@arsrna.cn"
-            force: true
 
   # tag push 时触发
   tag_push:
@@ -70,6 +80,8 @@ $:
           # 修改 package.json 中的version为当前tag，但不会提交代码
           script: npm version $CNB_BRANCH --no-git-tag-version
         - name: npm publish
+          imports:
+            - https://cnb.cool/arsrna/env/-/blob/main/npm.yml
           script:
             - npm publish
 
