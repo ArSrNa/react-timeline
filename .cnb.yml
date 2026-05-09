@@ -55,6 +55,9 @@ $:
   tag_push:
     - docker:
         image: docker.cnb.cool/arsrna/dev-image/nodejs
+        volumes:
+          - /root/.bun/install/cache
+          - /root/.npm
       runner:
         cpus: 16
       stages:
