@@ -57,7 +57,7 @@
     "video",
     "visualize"
   ],
-  "license": "GNU",
+  "license": "MIT",
   "scripts": {
     "build": "vite build",
     "dev": "vite",
