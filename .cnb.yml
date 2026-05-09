@@ -25,9 +25,9 @@ $:
           script: bun i
 
   push:
-    sync:
+    同步到gay湖北:
       stages:
-        - name: sync to github
+        - name: sync
           image: tencentcom/git-sync
           imports:
             - https://cnb.cool/arsrna/env/-/blob/main/git.yaml
@@ -38,7 +38,7 @@ $:
             password: ${GIT_ACCESS_TOKEN}
             git_email: "root@arsrna.cn"
             force: true
-    cr:
+    单测:
       docker:
         image: docker.cnb.cool/arsrna/dev-image/nodejs
         volumes:
@@ -48,8 +48,10 @@ $:
         cpus: 16
       stages:
         - name: 构建
-          script: bun run build
-        - name: 单测
+          script:
+            - bun i
+            - bun run build
+        - name: 测
           script: bun test --coverage
         - name: coverage
           type: testing:coverage
