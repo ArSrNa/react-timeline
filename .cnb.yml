@@ -82,7 +82,9 @@ $:
           imports:
             - https://cnb.cool/arsrna/env/-/blob/main/npm.yml
           script:
-            - npm publish
+            # publishConfig.registry 指向 CNB 私有源，这里显式覆盖回公共 npm
+            # 认证来自 npm.yml 注入的 NPM_TOKEN（.npmrc 中的 //registry.npmjs.org/:_authToken）
+            - npm publish --registry=https://registry.npmjs.org/
 
         - name: cnb-npm publish
           image: tencentcom/npm
