@@ -205,7 +205,7 @@ describe("TraceWaterfall", () => {
     expect(formatTime(1, { type: "clock", millisecond: true }, "s")).toBe(
       "00:00:01.000"
     );
-    expect(formatTime(1.5, { type: "number" }, "s")).toBe("1.5");
+    expect(formatTime(1.5, { type: "number" }, "s")).toBe("1.500");
     expect(formatTime(-1, { type: "clock", millisecond: true }, "s")).toBe(
       "-00:00:01.000"
     );
@@ -318,6 +318,204 @@ describe("TraceWaterfall", () => {
       />
     );
     expect(scroller.getAttribute("data-wf-layout")).toBe("lanes");
+  });
+
+  test("number 格式固定 3 位小数，当前与总时间一致", () => {
+    expect(formatDuration(2, { type: "number" }, "s")).toBe("2.000");
+    expect(formatTime(-0.0001, { type: "number" }, "s")).toBe("0.000");
+
+    const { container } = render(
+      <TraceWaterfall clips={[A]} currentTime={0.5} formatTime={{ type: "number" }} />
+    );
+    expect(q<HTMLElement>(container, '[data-wf="current-time"]').textContent)
+      .toContain("0.500");
+    expect(q<HTMLElement>(container, '[data-wf="total-time"]').textContent)
+      .toContain("1.000");
+  });
+
+  test("keepRowsAbove 在 scroll 模式下保留目标行上方的行", () => {
+    const ordered: TimelineClip[] = [0, 1, 2, 3].map(index => ({
+      id: `S${index}`,
+      name: `S${index}`,
+      index: 0,
+      start: index,
+      duration: 1,
+    }));
+
+    const { container, rerender } = render(
+      <TraceWaterfall clips={ordered} followMode="scroll" currentTime={3.5} />
+    );
+    const scroller = q<HTMLElement>(container, '[data-wf="scroller"]');
+    expect(scroller.scrollTop).toBe(96);
+
+    rerender(
+      <TraceWaterfall
+        clips={ordered}
+        followMode="scroll"
+        currentTime={3.5}
+        keepRowsAbove={2}
+      />
+    );
+    expect(scroller.scrollTop).toBe(32);
+  });
+
+  test("keepRowsAbove 在 hide 模式下保留最近结束的行", () => {
+    const ordered: TimelineClip[] = [0, 1, 2, 3].map(index => ({
+      id: `S${index}`,
+      name: `S${index}`,
+      index: 0,
+      start: index,
+      duration: 1,
+    }));
+
+    const { container } = render(
+      <TraceWaterfall
+        clips={ordered}
+        followMode="hide"
+        currentTime={2.5}
+        keepRowsAbove={1}
+      />
+    );
+
+    const rows = [...container.querySelectorAll('[data-wf="row"]')] as HTMLElement[];
+    expect(rows[0].style.display).toBe("none");
+    expect(rows[1].style.display).toBe("");
+  });
+
+  test("playing 时固定播放头 / 首行跟随锁定纵向滚动", () => {
+    const { container, rerender } = render(
+      <TraceWaterfall clips={[A]} fixedPlayhead playing />
+    );
+    const scroller = q<HTMLElement>(container, '[data-wf="scroller"]');
+    expect(scroller.getAttribute("data-wf-locked")).toBe("true");
+
+    rerender(<TraceWaterfall clips={[A]} fixedPlayhead playing={false} />);
+    expect(scroller.getAttribute("data-wf-locked")).toBe("false");
+
+    rerender(<TraceWaterfall clips={[A]} followMode="scroll" playing />);
+    expect(scroller.getAttribute("data-wf-locked")).toBe("true");
+
+    rerender(<TraceWaterfall clips={[A]} playing />);
+    expect(scroller.getAttribute("data-wf-locked")).toBe("false");
+  });
+
+  test("clip.height 只改条形高度，轨道 / rowHeight 改行高", () => {
+    const tall = { ...A, height: 24 };
+    const short: TimelineClip = {
+      id: "H2",
+      name: "H2",
+      index: 1,
+      start: 1,
+      duration: 1,
+      height: 12,
+    };
+
+    const { container, rerender } = render(
+      <TraceWaterfall clips={[tall, short]} layout="sequence" />
+    );
+    let rows = [...container.querySelectorAll<HTMLElement>('[data-wf="row"]')];
+    expect(rows[0].style.height).toBe("");
+    expect(rows[1].style.height).toBe("");
+    expect(q<HTMLElement>(container, '[data-clip-id="A"]').style.height).toBe("24px");
+    expect(q<HTMLElement>(container, '[data-clip-id="H2"]').style.height).toBe("12px");
+
+    rerender(
+      <TraceWaterfall clips={[A]} tracks={[{ index: 0, name: "T", height: 40 }]} />
+    );
+    rows = [...container.querySelectorAll<HTMLElement>('[data-wf="row"]')];
+    expect(rows[0].style.height).toBe("40px");
+
+    rerender(<TraceWaterfall clips={[A]} rowHeight={36} />);
+    rows = [...container.querySelectorAll<HTMLElement>('[data-wf="row"]')];
+    expect(rows[0].style.height).toBe("36px");
+  });
+
+  test("rowGap 控制行间距并参与跟随偏移", () => {
+    const { container, rerender } = render(
+      <TraceWaterfall clips={[A]} rowGap={8} />
+    );
+    expect(q<HTMLElement>(container, '[data-wf="rows"]').style.rowGap).toBe("8px");
+
+    const ordered: TimelineClip[] = [0, 1, 2].map(index => ({
+      id: `G${index}`,
+      name: `G${index}`,
+      index: 0,
+      start: index,
+      duration: 1,
+    }));
+
+    rerender(
+      <TraceWaterfall
+        clips={ordered}
+        followMode="scroll"
+        currentTime={2.5}
+        keepRowsAbove={1}
+        rowGap={10}
+      />
+    );
+
+    expect(q<HTMLElement>(container, '[data-wf="scroller"]').scrollTop).toBe(42);
+  });
+
+  test("自定义轨道行高参与首行跟随的累计偏移", () => {
+    const heights = [40, 20, 60, 30];
+    const ordered: TimelineClip[] = heights.map((_, index) => ({
+      id: `H${index}`,
+      name: `H${index}`,
+      index,
+      start: index,
+      duration: 1,
+    }));
+    const trackList: TimelineTrack[] = heights.map((height, index) => ({
+      index,
+      name: `T${index}`,
+      height,
+    }));
+
+    const { container } = render(
+      <TraceWaterfall
+        clips={ordered}
+        tracks={trackList}
+        followMode="scroll"
+        currentTime={3.5}
+        keepRowsAbove={1}
+      />
+    );
+
+    expect(q<HTMLElement>(container, '[data-wf="scroller"]').scrollTop).toBe(60);
+  });
+
+  test("labelWidth 可传入，拖拽把手调整宽度并回调", () => {
+    let changed: number | undefined;
+    const { container } = render(
+      <TraceWaterfall
+        clips={[A]}
+        labelWidth={260}
+        onLabelWidthChange={value => { changed = value; }}
+      />
+    );
+
+    const rulerLabel = () => q<HTMLElement>(container, '[data-wf="ruler-label"]');
+    const splitter = q<HTMLElement>(container, '[data-wf="splitter"]');
+
+    expect(rulerLabel().style.width).toBe("260px");
+    expect(splitter.style.left).toBe("256px");
+
+    fireEvent.mouseDown(splitter, { clientX: 260 });
+    fireEvent.mouseMove(document, { clientX: 320 });
+    fireEvent.mouseUp(document);
+
+    expect(rulerLabel().style.width).toBe("320px");
+    expect(changed).toBe(320);
+  });
+
+  test("resizableLabel=false 时不渲染拖拽把手，宽度仍由 labelWidth 决定", () => {
+    const { container } = render(
+      <TraceWaterfall clips={[A]} labelWidth={300} resizableLabel={false} />
+    );
+
+    expect(container.querySelector('[data-wf="splitter"]')).toBeNull();
+    expect(q<HTMLElement>(container, '[data-wf="ruler-label"]').style.width).toBe("300px");
   });
 
   test("搜索命中片段保留，无结果显示空态", () => {

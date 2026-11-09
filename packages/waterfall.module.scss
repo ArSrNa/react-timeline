@@ -17,7 +17,10 @@
     --wf-active: #6366f1;
     --wf-cursor: #ef4444;
     --wf-dim: rgba(31, 36, 48, 0.28);
+    --wf-scroll: rgba(31, 36, 48, 0.22);
+    --wf-scroll-hover: rgba(31, 36, 48, 0.4);
     --wf-row-h: 32px;
+    --wf-bar-inset: 7px;
     --wf-ruler-h: 30px;
 }
 
@@ -34,6 +37,43 @@
         --wf-grid: rgba(255, 255, 255, 0.07);
         --wf-active: #818cf8;
         --wf-dim: rgba(0, 0, 0, 0.42);
+        --wf-scroll: rgba(231, 234, 243, 0.2);
+        --wf-scroll-hover: rgba(231, 234, 243, 0.38);
+    }
+}
+
+// 细圆角滚动条：透明轨道 + 内缩滑块，横向纵向一致
+@mixin wf-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: var(--wf-scroll) transparent;
+
+    &::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    &::-webkit-scrollbar-track,
+    &::-webkit-scrollbar-corner {
+        background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        border: 2px solid transparent;
+        border-radius: 999px;
+        background: var(--wf-scroll);
+        background-clip: content-box;
+        transition: background-color 0.15s ease;
+
+        &:hover {
+            background: var(--wf-scroll-hover);
+            background-clip: content-box;
+        }
+    }
+
+    &::-webkit-scrollbar-button {
+        display: none;
+        width: 0;
+        height: 0;
     }
 }
 
@@ -169,11 +209,59 @@
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
+.viewport {
+    position: relative;
+    width: 100%;
+}
+
 .scroller {
     position: relative;
     overflow: auto;
     overscroll-behavior: contain;
     max-height: 100%;
+    @include wf-scrollbar;
+}
+
+// 播放中锁定纵向滚动，隐藏纵向滚动条；横向仍可自动滚动
+.scrollerLocked {
+    overflow-y: hidden;
+}
+
+// 标签列右边缘的拖拽把手，上下贯穿整个滚动区
+.splitter {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 6;
+    width: 8px;
+    background: transparent;
+    cursor: col-resize;
+    touch-action: none;
+
+    &::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 3px;
+        width: 2px;
+        border-radius: 1px;
+        background: transparent;
+        transition: background 0.15s ease;
+    }
+
+    &:hover::after,
+    &:focus-visible::after {
+        background: var(--wf-active);
+    }
+
+    &:focus-visible {
+        outline: none;
+    }
+}
+
+.splitterActive::after {
+    background: var(--wf-active);
 }
 
 .canvas {
@@ -250,6 +338,8 @@
 
 .rows {
     position: relative;
+    display: flex;
+    flex-direction: column;
 }
 
 .row {
@@ -334,7 +424,9 @@
     position: absolute;
     top: 50%;
     z-index: 1;
-    height: 14px;
+    // 条形高度跟随行高，只保留上下 inset；clip.height 更小时以它为准
+    height: max(6px, calc(100% - var(--wf-bar-inset) * 2));
+    max-height: calc(100% - var(--wf-bar-inset) * 2);
     min-width: 2px;
     padding: 0 5px;
     border: 0;
@@ -428,6 +520,7 @@
     font-size: 12px;
     line-height: 1.5;
     box-sizing: border-box;
+    @include wf-scrollbar;
 }
 
 .popoverHead {
@@ -494,6 +587,7 @@
     word-break: break-all;
     max-height: 180px;
     overflow: auto;
+    @include wf-scrollbar;
 }
 
 @media (max-width: 720px) {

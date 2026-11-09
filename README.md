@@ -116,8 +116,13 @@ const clips = [
 
 - `viewStart` / `viewDuration` 定义可 seek 的视图范围；晚于 `viewEnd` 的片段仍会渲染，但会压暗，`currentTime` 不会越过 `viewEnd`。
 - `fixedPlayhead` 会在视图前后补留白，游标从起点到终点都停在 `playheadPosition`。
-- `followMode` 非 `off` 时强制 `sequence` 平铺；支持 `scroll` 上滚与 `hide` 直接消失。
+- `followMode` 非 `off` 时强制 `sequence` 平铺；支持 `scroll` 上滚与 `hide` 直接消失，`keepRowsAbove` 控制目标行上方保留多少行。
+- `playing` 为 `true` 且开启了 `fixedPlayhead` 或 `followMode` 时，纵向滚动锁定（隐藏纵向滚动条），暂停后恢复自由滚动；不传默认不播放。
 - `layout` 默认 `lanes`；`zoom` 受控、`defaultZoom` 非受控。
+- 左侧标签列默认 `220px`，`labelWidth` 可定义初始宽度；`resizableLabel`（默认 `true`）开启拖拽把手，范围由 `minLabelWidth` / `maxLabelWidth` 限制，拖动时回调 `onLabelWidthChange`。
+- 标签高度即行高：由 `rowHeight` 定义默认值，`TimelineTrack.height` 可按轨覆盖；`TimelineClip.height` 只控制条形高度（不超过行高减留白），不会改变标签行高。行与行之间的纵向间距用 `rowGap` 设置，默认 `0`。
+- 条形高度跟随行高自适应，只保留上下留白；留白由 `--wf-bar-inset` 控制（默认 `7px`）。需要单独控制某个条形时用 `TimelineClip.height`，会被行高上限截断。
+- `formatTime={{ type: 'number' }}` 使用固定 3 位小数（如 `1.500`），当前时间与总时间一致。
 - 文案通过 `labels` 覆盖；颜色通过 CSS 变量 `--wf-*` 覆盖。
 
 # 应用
@@ -194,12 +199,13 @@ interface TimelineClip {
     label?: ReactNode
     color?: string
     style?: CSSProperties
+    height?: number
     meta?: Record<string, unknown>
 }
 
 interface TraceWaterfallProps {
     clips: TimelineClip[]
-    tracks?: { index: number, name?: string }[]
+    tracks?: { index: number, name?: string, height?: number }[]
     layout?: 'lanes' | 'sequence'
     unit?: 'ms' | 's'
     viewStart?: number
@@ -210,11 +216,19 @@ interface TraceWaterfallProps {
     formatDuration?: (value: number) => string
     fixedPlayhead?: boolean
     playheadPosition?: number
+    playing?: boolean
     followMode?: 'off' | 'scroll' | 'hide'
+    keepRowsAbove?: number
     zoom?: number
     defaultZoom?: number
     onZoomChange?: (zoom: number) => void
     labelWidth?: number
+    resizableLabel?: boolean
+    minLabelWidth?: number
+    maxLabelWidth?: number
+    onLabelWidthChange?: (width: number) => void
+    rowHeight?: number
+    rowGap?: number
     height?: CSSProperties['height']
     minTickGap?: number
     showTime?: boolean
@@ -239,7 +253,7 @@ type TimeFormat =
 - `formatTime` 用于绝对时间（应用 `offset`），`formatDuration` 用于时长（不应用 `offset`）。
 - `currentTime` 受控；点击标尺触发 `onCurrentTimeChange`，点击片段只打开详情。
 - `showSearch` / `showZoom` 可关闭内置搜索框与缩放按钮；关闭后可用受控 `zoom` 在外部控制缩放。
-- `labels` 可覆盖 `search` / `noMatch` / `empty` / `current` / `total` / `track` / `start` / `end` / `duration` / `close` / `zoom` / `lanesColumn` / `sequenceColumn`。
+- `labels` 可覆盖 `search` / `noMatch` / `empty` / `current` / `total` / `track` / `start` / `end` / `duration` / `close` / `zoom` / `resize` / `lanesColumn` / `sequenceColumn`。
 - 纯函数 `getActiveAt`、`getTopActiveAt`、`getClipEnd`、`resolveRange`、`buildRows`、`buildTicks`、`formatTime`、`formatDuration` 也可从包中导入。
 
 ## 重叠规则 (Level)

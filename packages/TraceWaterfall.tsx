@@ -1,4 +1,5 @@
 import {
+    KeyboardEvent as ReactKeyboardEvent,
     MouseEvent as ReactMouseEvent,
     ReactNode,
     useCallback,
@@ -48,6 +49,22 @@ function paletteColor(index: number) {
     return `var(--wf-clip-${normalized + 1})`
 }
 
+const DEFAULT_LABEL_WIDTH = 220
+const DEFAULT_MIN_LABEL_WIDTH = 120
+const DEFAULT_MAX_LABEL_WIDTH = 480
+
+/** 归一化可拖拽宽度区间，非法值回退默认值 */
+function normalizeWidthRange(min: number, max: number) {
+    const safeMin = Number.isFinite(min) ? Math.max(min, 0) : DEFAULT_MIN_LABEL_WIDTH
+    const safeMax = Number.isFinite(max) ? Math.max(max, safeMin) : DEFAULT_MAX_LABEL_WIDTH
+    return { min: safeMin, max: Math.max(safeMax, safeMin) }
+}
+
+function clampWidth(value: number, min: number, max: number) {
+    if (!Number.isFinite(value)) return min
+    return Math.min(Math.max(value, min), max)
+}
+
 /** 根据背景色选择可读的文字颜色；CSS 变量交给样式表处理 */
 function textColor(background?: string) {
     if (!background) return undefined
@@ -94,11 +111,19 @@ export default function TraceWaterfall({
     formatDuration: formatDurationProp,
     fixedPlayhead = false,
     playheadPosition = 0.5,
+    playing = false,
     followMode = 'off',
+    keepRowsAbove = 0,
     zoom,
     defaultZoom = 1,
     onZoomChange,
-    labelWidth = 220,
+    labelWidth: labelWidthProp,
+    resizableLabel = true,
+    minLabelWidth = DEFAULT_MIN_LABEL_WIDTH,
+    maxLabelWidth = DEFAULT_MAX_LABEL_WIDTH,
+    onLabelWidthChange,
+    rowHeight,
+    rowGap = 0,
     height = 360,
     minTickGap = 64,
     showTime = true,
@@ -121,6 +146,17 @@ export default function TraceWaterfall({
         : (defaultZoom > 0 ? defaultZoom : 1)
     const prevZoomRef = useRef<number>(initialZoom)
 
+    const widthRange = normalizeWidthRange(minLabelWidth, maxLabelWidth)
+    const [innerLabelWidth, setInnerLabelWidth] = useState(() => clampWidth(
+        typeof labelWidthProp === 'number' ? labelWidthProp : DEFAULT_LABEL_WIDTH,
+        widthRange.min,
+        widthRange.max
+    ))
+    const [resizing, setResizing] = useState(false)
+    const labelWidth = clampWidth(innerLabelWidth, widthRange.min, widthRange.max)
+    const prevLabelWidthRef = useRef(labelWidthProp)
+    const dragRef = useRef<{ startX: number, startWidth: number } | null>(null)
+
     const [query, setQuery] = useState('')
     const [innerZoom, setInnerZoom] = useState(defaultZoom)
     const [viewportWidth, setViewportWidth] = useState(0)
@@ -133,6 +169,8 @@ export default function TraceWaterfall({
     const rawZoom = typeof zoom === 'number' && Number.isFinite(zoom) ? zoom : innerZoom
     const currentZoom = rawZoom > 0 ? rawZoom : 1
     const effectiveLayout = followMode !== 'off' ? 'sequence' : layout
+    // 播放中且启用了纵向跟随能力时锁定纵向滚动，平时保持自由滚动
+    const lockVertical = playing && (fixedPlayhead || followMode !== 'off')
     const range = useMemo(
         () => resolveRange(clips, viewStart, viewDuration),
         [clips, viewStart, viewDuration]
@@ -166,6 +204,10 @@ export default function TraceWaterfall({
     const clampedTime = typeof currentTime === 'number' && Number.isFinite(currentTime)
         ? clampTime(currentTime, range)
         : undefined
+    const keepAbove = Number.isFinite(keepRowsAbove)
+        ? Math.max(Math.floor(keepRowsAbove), 0)
+        : 0
+    const gap = Number.isFinite(rowGap) ? Math.max(rowGap, 0) : 0
 
     const formatTimeValue = useCallback(
         (value: number) => formatTime(value, formatTimeProp, unit),
@@ -179,8 +221,8 @@ export default function TraceWaterfall({
     )
 
     const rows = useMemo(
-        () => buildRows(clips, tracks, effectiveLayout, mergedLabels),
-        [clips, tracks, effectiveLayout, mergedLabels]
+        () => buildRows(clips, tracks, effectiveLayout, mergedLabels, rowHeight),
+        [clips, tracks, effectiveLayout, mergedLabels, rowHeight]
     )
     const visibleRows = useMemo(() => {
         if (!query.trim()) return rows
@@ -220,6 +262,54 @@ export default function TraceWaterfall({
         observer.observe(element)
         return () => observer.disconnect()
     }, [])
+
+    // 外部 labelWidth 变化时同步内部宽度；拖拽过程中不打断
+    useEffect(() => {
+        if (prevLabelWidthRef.current === labelWidthProp) return
+        prevLabelWidthRef.current = labelWidthProp
+
+        const next = typeof labelWidthProp === 'number' && Number.isFinite(labelWidthProp)
+            ? labelWidthProp
+            : DEFAULT_LABEL_WIDTH
+        setInnerLabelWidth(clampWidth(next, widthRange.min, widthRange.max))
+    }, [labelWidthProp, widthRange.min, widthRange.max])
+
+    // 拖拽标签列：监听 document，指针移出把手后仍然连续
+    useEffect(() => {
+        if (!resizing) return
+
+        const onMove = (event: MouseEvent) => {
+            const drag = dragRef.current
+            if (!drag) return
+            const next = clampWidth(
+                drag.startWidth + (event.clientX - drag.startX),
+                widthRange.min,
+                widthRange.max
+            )
+            setInnerLabelWidth(next)
+            onLabelWidthChange?.(next)
+        }
+        const onUp = () => {
+            dragRef.current = null
+            setResizing(false)
+        }
+
+        document.addEventListener('mousemove', onMove)
+        document.addEventListener('mouseup', onUp)
+
+        const body = document.body
+        const previousCursor = body.style.cursor
+        const previousSelect = body.style.userSelect
+        body.style.cursor = 'col-resize'
+        body.style.userSelect = 'none'
+
+        return () => {
+            document.removeEventListener('mousemove', onMove)
+            document.removeEventListener('mouseup', onUp)
+            body.style.cursor = previousCursor
+            body.style.userSelect = previousSelect
+        }
+    }, [resizing, widthRange.min, widthRange.max, onLabelWidthChange])
 
     // 隐藏搜索时清空过滤，避免留下不可见的过滤条件
     useEffect(() => {
@@ -341,13 +431,50 @@ export default function TraceWaterfall({
         }
         if (target < 0) return
 
-        const rowHeight = rowElements[0].getBoundingClientRect().height || 32
-        element.scrollTop = target * rowHeight
-    }, [followMode, effectiveLayout, clampedTime, visibleRows])
+        const anchor = Math.max(target - keepAbove, 0)
+        const rowPixelHeight = (index: number) => {
+            const explicit = visibleRows[index]?.height
+            if (typeof explicit === 'number' && Number.isFinite(explicit)) return explicit
+            const node = rowElements[index] as HTMLElement | undefined
+            return node?.offsetHeight || node?.getBoundingClientRect().height || 32
+        }
+
+        // 目标行上方保留 keepRowsAbove 行，按真实行高 + 行间距累计偏移
+        let offset = 0
+        for (let i = 0; i < anchor; i++) offset += rowPixelHeight(i) + gap
+        element.scrollTop = offset
+    }, [followMode, effectiveLayout, clampedTime, visibleRows, keepAbove, gap])
 
     const applyZoom = (value: number) => {
         if (zoom === undefined) setInnerZoom(value)
         onZoomChange?.(value)
+    }
+
+    const applyLabelWidth = (value: number) => {
+        const next = clampWidth(value, widthRange.min, widthRange.max)
+        setInnerLabelWidth(next)
+        onLabelWidthChange?.(next)
+    }
+
+    const handleSplitterDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+        if (!resizableLabel) return
+        event.preventDefault()
+        event.stopPropagation()
+        dragRef.current = { startX: event.clientX, startWidth: labelWidth }
+        setResizing(true)
+    }
+
+    const handleSplitterKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+        const step = event.shiftKey ? 32 : 8
+        let next: number | undefined
+
+        if (event.key === 'ArrowLeft') next = labelWidth - step
+        else if (event.key === 'ArrowRight') next = labelWidth + step
+        else if (event.key === 'Home') next = DEFAULT_LABEL_WIDTH
+
+        if (next === undefined) return
+        event.preventDefault()
+        applyLabelWidth(next)
     }
 
     const openDetail = (clip: TimelineClip, event: { clientX: number, clientY: number }) => {
@@ -401,6 +528,9 @@ export default function TraceWaterfall({
         const width = Math.max((end - start) * pxPerUnit, 2)
         const name = clip.name ?? clip.id
         const durationText = formatDurationValue(end - clip.start)
+        const barHeight = typeof clip.height === 'number' && Number.isFinite(clip.height)
+            ? Math.max(clip.height, 0)
+            : undefined
 
         return <button
             type="button"
@@ -411,6 +541,7 @@ export default function TraceWaterfall({
             style={{
                 left,
                 width,
+                height: barHeight,
                 background: clip.color ?? paletteColor(clip.index),
                 color: textColor(clip.color),
                 ...clip.style
@@ -426,6 +557,14 @@ export default function TraceWaterfall({
     const hideBefore = followMode === 'hide' && effectiveLayout === 'sequence'
         ? clampedTime
         : undefined
+    // 直接消失模式：保留最近 keepRowsAbove 个已结束的行在视口上方
+    const keptEndedRows = new Set<string>()
+    if (hideBefore !== undefined && keepAbove > 0) {
+        const ended = visibleRows.filter(row => row.end < hideBefore)
+        ended.slice(Math.max(ended.length - keepAbove, 0)).forEach(row => {
+            keptEndedRows.add(row.id)
+        })
+    }
     const hasClips = clips.length > 0
     const emptyMessage = !hasClips
         ? (emptyText ?? mergedLabels.empty)
@@ -503,120 +642,148 @@ export default function TraceWaterfall({
             </div>}
         </div>}
 
-        <div
-            ref={scrollerRef}
-            className={style.scroller}
-            style={{ height }}
-            data-wf="scroller"
-            data-wf-layout={effectiveLayout}
-        >
+        <div className={style.viewport}>
             <div
-                className={style.canvas}
-                data-wf="canvas"
-                style={{ width: canvasWidth }}
+                ref={scrollerRef}
+                className={cx(style.scroller, lockVertical && style.scrollerLocked)}
+                style={{ height }}
+                data-wf="scroller"
+                data-wf-layout={effectiveLayout}
+                data-wf-locked={lockVertical ? 'true' : 'false'}
             >
-                <div className={style.ruler} data-wf="ruler">
-                    <div
-                        className={style.rulerLabel}
-                        data-wf="ruler-label"
-                        style={{ width: labelWidth }}
-                    >
-                        {effectiveLayout === 'lanes'
-                            ? mergedLabels.lanesColumn
-                            : mergedLabels.sequenceColumn}
-                    </div>
-                    <div
-                        className={style.rulerTrack}
-                        data-wf="ruler-track"
-                        style={{ width: bodyWidth, marginLeft: lead }}
-                        onClick={handleRulerClick}
-                    >
-                        {ticks.map(tick => <span
-                            key={tick.value}
-                            className={style.tick}
-                            style={{ left: tick.x }}
-                        >
-                            {formatTimeValue(tick.value)}
-                        </span>)}
-                        {dimWidth > 0 && <span
-                            className={style.rulerDim}
-                            style={{ left: viewWidth, width: dimWidth }}
-                        />}
-                    </div>
-                </div>
-
-                {bodyWidth > 0 && <div
-                    className={style.grid}
-                    style={{
-                        left: labelWidth + lead,
-                        width: bodyWidth,
-                        backgroundSize: `${gridSize}px 100%`,
-                        backgroundPositionX: firstOffset
-                    }}
-                />}
-
-                {!showEmptyState ? <div className={style.rows}>
-                    {visibleRows.map(row => <div
-                        key={row.id}
-                        className={style.row}
-                        data-wf="row"
-                        data-start={row.start}
-                        data-end={row.end}
-                        style={hideBefore !== undefined && row.end < hideBefore
-                            ? { display: 'none' }
-                            : undefined}
-                    >
+                <div
+                    className={style.canvas}
+                    data-wf="canvas"
+                    style={{ width: canvasWidth }}
+                >
+                    <div className={style.ruler} data-wf="ruler">
                         <div
-                            className={style.label}
+                            className={style.rulerLabel}
+                            data-wf="ruler-label"
                             style={{ width: labelWidth }}
-                            title={row.label}
-                            onClick={event => handleLabelClick(row, event)}
                         >
-                            <span
-                                className={style.dot}
-                                style={{
-                                    background: row.clips[0]?.color ?? paletteColor(row.index)
-                                }}
-                            />
-                            <span className={style.name}>
-                                {effectiveLayout === 'sequence'
-                                    ? renderSearchText(row.label, row.clips[0])
-                                    : renderSearchText(row.label)}
-                            </span>
-                            {effectiveLayout === 'sequence' && <span
-                                className={style.tag}
-                                title={row.trackName}
-                            >
-                                {row.trackName}
-                            </span>}
-                            {effectiveLayout === 'sequence' && <span className={style.duration}>
-                                {formatDurationValue(row.end - row.start)}
-                            </span>}
+                            {effectiveLayout === 'lanes'
+                                ? mergedLabels.lanesColumn
+                                : mergedLabels.sequenceColumn}
                         </div>
-
                         <div
-                            className={style.track}
+                            className={style.rulerTrack}
+                            data-wf="ruler-track"
                             style={{ width: bodyWidth, marginLeft: lead }}
+                            onClick={handleRulerClick}
                         >
-                            {row.clips.map((clip, index) => renderBar(clip, `${row.id}-${index}`))}
+                            {ticks.map(tick => <span
+                                key={tick.value}
+                                className={style.tick}
+                                style={{ left: tick.x }}
+                            >
+                                {formatTimeValue(tick.value)}
+                            </span>)}
+                            {dimWidth > 0 && <span
+                                className={style.rulerDim}
+                                style={{ left: viewWidth, width: dimWidth }}
+                            />}
                         </div>
-                    </div>)}
-                </div> : <div className={style.empty} data-wf="empty">
-                    {emptyMessage}
-                </div>}
+                    </div>
 
-                {dimWidth > 0 && <div
-                    className={style.dim}
-                    data-wf="dim"
-                    style={{ left: labelWidth + lead + viewWidth, width: dimWidth }}
-                />}
+                    {bodyWidth > 0 && <div
+                        className={style.grid}
+                        style={{
+                            left: labelWidth + lead,
+                            width: bodyWidth,
+                            backgroundSize: `${gridSize}px 100%`,
+                            backgroundPositionX: firstOffset
+                        }}
+                    />}
 
-                {clampedTime !== undefined && <div
-                    className={style.cursor}
-                    data-wf="cursor"
-                    style={{ left: labelWidth + lead + (clampedTime - range.start) * pxPerUnit }}
-                />}
+                    {!showEmptyState ? <div
+                        className={style.rows}
+                        data-wf="rows"
+                        style={{ rowGap: gap }}
+                    >
+                        {visibleRows.map(row => <div
+                            key={row.id}
+                            className={style.row}
+                            data-wf="row"
+                            data-start={row.start}
+                            data-end={row.end}
+                            style={{
+                                height: row.height,
+                                display: hideBefore !== undefined
+                                    && row.end < hideBefore
+                                    && !keptEndedRows.has(row.id)
+                                    ? 'none'
+                                    : undefined
+                            }}
+                        >
+                            <div
+                                className={style.label}
+                                style={{ width: labelWidth }}
+                                title={row.label}
+                                onClick={event => handleLabelClick(row, event)}
+                            >
+                                <span
+                                    className={style.dot}
+                                    style={{
+                                        background: row.clips[0]?.color ?? paletteColor(row.index)
+                                    }}
+                                />
+                                <span className={style.name}>
+                                    {effectiveLayout === 'sequence'
+                                        ? renderSearchText(row.label, row.clips[0])
+                                        : renderSearchText(row.label)}
+                                </span>
+                                {effectiveLayout === 'sequence' && <span
+                                    className={style.tag}
+                                    title={row.trackName}
+                                >
+                                    {row.trackName}
+                                </span>}
+                                {effectiveLayout === 'sequence' && <span className={style.duration}>
+                                    {formatDurationValue(row.end - row.start)}
+                                </span>}
+                            </div>
+
+                            <div
+                                className={style.track}
+                                style={{ width: bodyWidth, marginLeft: lead }}
+                            >
+                                {row.clips.map((clip, index) => renderBar(clip, `${row.id}-${index}`))}
+                            </div>
+                        </div>)}
+                    </div> : <div className={style.empty} data-wf="empty">
+                        {emptyMessage}
+                    </div>}
+
+                    {dimWidth > 0 && <div
+                        className={style.dim}
+                        data-wf="dim"
+                        style={{ left: labelWidth + lead + viewWidth, width: dimWidth }}
+                    />}
+
+                    {clampedTime !== undefined && <div
+                        className={style.cursor}
+                        data-wf="cursor"
+                        style={{ left: labelWidth + lead + (clampedTime - range.start) * pxPerUnit }}
+                    />}
+                </div>
             </div>
+
+            {resizableLabel && <div
+                className={cx(style.splitter, resizing && style.splitterActive)}
+                data-wf="splitter"
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={mergedLabels.resize}
+                aria-valuemin={widthRange.min}
+                aria-valuemax={widthRange.max}
+                aria-valuenow={Math.round(labelWidth)}
+                tabIndex={0}
+                title={mergedLabels.resize}
+                style={{ left: labelWidth - 4 }}
+                onMouseDown={handleSplitterDown}
+                onKeyDown={handleSplitterKeyDown}
+            />}
         </div>
 
         {showDetail && detail && <div
