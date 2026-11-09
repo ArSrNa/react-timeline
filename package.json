@@ -1,6 +1,6 @@
 {
   "name": "react-av-timeline",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "author": "ArSrNa",
   "repository": {
     "type": "git",
@@ -66,5 +66,8 @@
     "test:coverage": "bun test --coverage"
   },
   "type": "module",
-  "typings": "./dist/index.d.ts"
+  "typings": "./dist/index.d.ts",
+  "publishConfig": {
+    "registry": "https://npm.cnb.cool/arsrna/os-npm/-/packages/"
+  }
 }
