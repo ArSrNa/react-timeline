@@ -17,6 +17,8 @@ export interface TimelineClip {
     color?: string,
     /** 条形自定义样式 */
     style?: CSSProperties,
+    /** 条形高度（px）；不超过行高减去上下留白，缺省自动铺满行高 */
+    height?: number,
     /** 原始数据，详情中展示 */
     meta?: Record<string, unknown>
 }
@@ -25,7 +27,9 @@ export interface TimelineTrack {
     /** 轨道号 */
     index: number,
     /** 轨道名 */
-    name?: string
+    name?: string,
+    /** 该轨行高（px），缺省用 rowHeight 或 --wf-row-h */
+    height?: number
 }
 
 export type TimeFormat =
@@ -46,6 +50,8 @@ export interface TimelineRow {
     label: string,
     start: number,
     end: number,
+    /** 行高（px）；缺省时由 CSS 变量 --wf-row-h 决定 */
+    height?: number,
     clips: TimelineClip[]
 }
 
@@ -61,6 +67,7 @@ export interface TimelineLabels {
     duration: string,
     close: string,
     zoom: string,
+    resize: string,
     lanesColumn: string,
     sequenceColumn: string
 }
@@ -84,13 +91,30 @@ export interface TraceWaterfallProps {
     /** 视口 */
     fixedPlayhead?: boolean,
     playheadPosition?: number,
+    /** 播放状态，默认 false；播放中且开启固定播放头 / 首行跟随时锁定纵向滚动 */
+    playing?: boolean,
     followMode?: 'off' | 'scroll' | 'hide',
+    /** 跟随时目标行上方保留的行数，默认 0 */
+    keepRowsAbove?: number,
     zoom?: number,
     defaultZoom?: number,
     onZoomChange?: (zoom: number) => void,
 
     /** 外观 */
+    /** 左侧标签列宽度，默认 220；拖拽后以内部宽度为准，传入变化时重新同步 */
     labelWidth?: number,
+    /** 是否允许拖拽调整左侧标签列宽度，默认 true */
+    resizableLabel?: boolean,
+    /** 标签列最小宽度，默认 120 */
+    minLabelWidth?: number,
+    /** 标签列最大宽度，默认 480 */
+    maxLabelWidth?: number,
+    /** 标签列宽度变化回调（拖拽或键盘调整时触发） */
+    onLabelWidthChange?: (width: number) => void,
+    /** 默认行高（px）；不传时由 --wf-row-h 决定，片段 / 轨道可单独覆盖 */
+    rowHeight?: number,
+    /** 行与行之间的纵向间距（px），默认 0 */
+    rowGap?: number,
     height?: CSSProperties['height'],
     minTickGap?: number,
     showTime?: boolean,
@@ -120,6 +144,7 @@ export const DEFAULT_LABELS: TimelineLabels = {
     duration: '时长',
     close: '关闭详情',
     zoom: '缩放',
+    resize: '调整标签列宽度',
     lanesColumn: '轨道',
     sequenceColumn: '片段'
 }
@@ -221,13 +246,22 @@ function trackName(
     return track?.name ?? `${labels.track} ${index}`
 }
 
-/** 构建行：lanes 按轨道，sequence 按 start 平铺 */
+/** 行高只接受有限非负数 */
+function normalizeHeight(value?: number): number | undefined {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return undefined
+    return Math.max(value, 0)
+}
+
+/** 构建行：lanes 按轨道，sequence 按 start 平铺；行高只由轨道 / rowHeight 决定 */
 export function buildRows(
     clips: TimelineClip[],
     tracks: TimelineTrack[] | undefined,
     layout: 'lanes' | 'sequence',
-    labels: Pick<TimelineLabels, 'track'>
+    labels: Pick<TimelineLabels, 'track'>,
+    rowHeight?: number
 ): TimelineRow[] {
+    const defaultHeight = normalizeHeight(rowHeight)
+
     if (layout === 'sequence') {
         return clips
             .map((clip, order) => ({ clip, order }))
@@ -242,6 +276,7 @@ export function buildRows(
                     label: clip.name ?? clip.id,
                     start: clip.start,
                     end: getClipEnd(clip),
+                    height: normalizeHeight(track?.height) ?? defaultHeight,
                     clips: [clip]
                 }
             })
@@ -271,6 +306,7 @@ export function buildRows(
                 label: name,
                 start: starts.length ? Math.min(...starts) : 0,
                 end: ends.length ? Math.max(...ends) : 0,
+                height: normalizeHeight(track?.height) ?? defaultHeight,
                 clips: rowClips
             }
         })
@@ -319,10 +355,11 @@ function pad(value: number, length = 2): string {
     return String(Math.floor(Math.abs(value))).padStart(length, '0')
 }
 
+/** 纯数字格式固定 3 位小数，例如 1.5 → 1.500 */
 function formatNumber(value: number): string {
     if (!Number.isFinite(value)) return '-'
-    const rounded = Math.round(value * 1000) / 1000
-    return Object.is(rounded, -0) ? '0' : String(rounded)
+    const text = value.toFixed(3)
+    return text === '-0.000' ? '0.000' : text
 }
 
 function formatClock(

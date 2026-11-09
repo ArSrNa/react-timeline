@@ -1,8 +1,14 @@
 # Spec：瀑布时间线（音视频导播）
 
 对应 intent：`docs/trace-waterfall/intent.md`
-状态：v4，已确认（2026-11-09），本文是实现的唯一依据
+状态：v10，已确认（2026-11-09），本文是实现的唯一依据
 
+> v10 变更（2026-11-09）：`clip.height` 改为只控制条形高度，不再影响行高；行高统一由 `track.height` / `rowHeight` / `--wf-row-h` 决定，避免相邻行一高一矮。
+> v9 变更（2026-11-09）：条形高度改为跟随行高自适应（`max(6px, 100% - 2 × --wf-bar-inset)`），避免自定义行高后标签区域出现大片空白。
+> v8 变更（2026-11-09）：新增 `rowGap`，行与行之间支持纵向间距；标签高度即行高，跟随滚动偏移同时累计行高与行间距。
+> v7 变更（2026-11-09）：滚动条改为细圆角内缩滑块，横向 / 纵向统一，新增 `--wf-scroll` / `--wf-scroll-hover` 主题变量，并补充 Firefox 的 `scrollbar-width` / `scrollbar-color`。
+> v6 变更（2026-11-09）：新增播放状态 `playing`，播放中且启用固定播放头 / 首行跟随时锁定纵向滚动；新增 `rowHeight` 默认行高，片段与轨道可通过 `height` 单独定义行高，跟随滚动按真实行高累计偏移。
+> v5 变更（2026-11-09）：左侧标签列支持拖拽调整宽度（`resizableLabel` / `minLabelWidth` / `maxLabelWidth` / `onLabelWidthChange`）；`followMode` 新增 `keepRowsAbove`，两种模式都可保留目标行上方若干行；`number` 格式固定 3 位小数。
 > v4 变更（2026-11-09）：按确认记录关闭 D1-D12。版本改为 `3.0.0`；数据模型只保留 `duration`；视图外内容正常渲染并压暗，`currentTime` 仍钳制在视图内；固定播放头增加左右留白，游标全程固定；`followMode` 非 `off` 时强制平铺；修正 SMPTE / clock 换算；导出 `getActiveAt` / `getTopActiveAt`；拆分 `formatDuration`；新增 `labels`、测试钩子、刻度、颜色、详情、跟随 + 搜索等细节。
 > v3 变更（2026-11-09）：定位改为音视频导播时间线；数据模型只保留 `clips` / `tracks`；删除 trace 语义（`spans`、`now`、tokens/cost/status）、指标栏、图例、最慢排行；顶部只保留当前时间 / 总时间；新增 `layout`（lanes / sequence）。
 
@@ -52,12 +58,14 @@ export interface TimelineClip {
   label?: ReactNode      // 条形内自定义内容，缺省用 name
   color?: string
   style?: CSSProperties
+  height?: number        // 条形高度，不超过行高减上下留白
   meta?: Record<string, unknown>
 }
 
 export interface TimelineTrack {
   index: number
   name?: string
+  height?: number        // 行高，缺省用 rowHeight 或 --wf-row-h
 }
 ```
 
@@ -120,7 +128,7 @@ totalFrames = round((offset + value) * unitMs * fps / 1000)
 
 | 类型 | 输出 | 说明 |
 |---|---|---|
-| `number` | `0`、`1.5` | 最多 3 位小数，去尾随 0 |
+| `number` | `0.000`、`1.500` | 固定 3 位小数 |
 | `clock` | `HH:MM:SS` / `HH:MM:SS.mmm` | 固定补零，与 `00:00:01.000` 一致 |
 | `smpte` | `HH:MM:SS:FF` | `FF = totalFrames % fps`，两位补零 |
 
@@ -145,6 +153,7 @@ export interface TimelineLabels {
   duration: string
   close: string
   zoom: string
+  resize: string
   lanesColumn: string
   sequenceColumn: string
 }
@@ -167,13 +176,21 @@ export interface TraceWaterfallProps {
   // 视口
   fixedPlayhead?: boolean            // 默认 false
   playheadPosition?: number          // 0–1，默认 0.5
+  playing?: boolean                  // 默认 false
   followMode?: 'off' | 'scroll' | 'hide' // 默认 'off'
+  keepRowsAbove?: number             // 跟随时目标行上方保留行数，默认 0
   zoom?: number                      // 受控
   defaultZoom?: number               // 默认 1
   onZoomChange?: (zoom: number) => void
 
   // 外观
   labelWidth?: number                // 默认 220
+  resizableLabel?: boolean           // 默认 true
+  minLabelWidth?: number             // 默认 120
+  maxLabelWidth?: number             // 默认 480
+  onLabelWidthChange?: (width: number) => void
+  rowHeight?: number                 // 默认行高，缺省由 --wf-row-h 决定
+  rowGap?: number                    // 行间距，默认 0
   height?: CSSProperties['height']   // 默认 360
   minTickGap?: number                // 默认 64
   showTime?: boolean                 // 默认 true
@@ -209,6 +226,7 @@ export interface TraceWaterfallProps {
 | `duration` | `时长` |
 | `close` | `关闭详情` |
 | `zoom` | `缩放` |
+| `resize` | `调整标签列宽度` |
 | `lanesColumn` | `轨道` |
 | `sequenceColumn` | `片段` |
 
@@ -232,6 +250,10 @@ barWidth     = max((clipEnd - max(start, viewStart)) * pxPerUnit, 2)
 cursorLeft   = labelWidth + lead + x(currentTime)
 ```
 
+- `labelWidth` 可由 `labelWidth` 传入，也可在 `resizableLabel` 开启时通过标签列右边缘的把手拖拽或键盘（←/→、Shift 加速、Home 复位）调整；范围钳制到 `[minLabelWidth, maxLabelWidth]`。
+- 行高按行解析：`sequence` 取 `track.height ?? rowHeight`；`lanes` 取 `track.height ?? rowHeight`。两者都没有时不写内联高度，沿用 CSS 变量 `--wf-row-h`。标签高度等于所在行高，与 `clip.height` 无关。
+- 行与行之间的纵向间距由 `rowGap` 控制，作用在 `.rows` 的 `row-gap` 上，默认 `0`。
+- 条形高度缺省为 `max(6px, 100% - 2 × --wf-bar-inset)`，随行高自动放大；`clip.height` 存在时以它为准，并用 `max-height` 限制在行高减上下留白以内。
 - `viewportWidth` 由 `ResizeObserver` 监听 `.scroller`；无该 API 时用 `window.resize` + `clientWidth`。
 - `lead` 在视图起点前留出空白，`rightPad` 在渲染终点后留出空白，二者保证固定播放头在起点和终点都停在 `playheadPosition`。
 - 关闭固定播放头时 `lead = rightPad = 0`，保留原生滚动。
@@ -305,15 +327,22 @@ scrollLeft = max(0, labelWidth + lead + x(t) - playheadX)
 
 - **`scroll`（上滚）**
   - 目标行：当前渲染顺序中第一个 `start <= t <= end` 的行；没有则取第一个 `end >= t` 的行；都没有则不动。
-  - `scrollTop = rowIndex * rowHeight`，让目标行贴到吸顶标尺下沿；
+  - `anchor = max(rowIndex - keepRowsAbove, 0)`，`scrollTop = Σ(anchor 之前各行的行高 + rowGap)`，目标行上方保留 `keepRowsAbove` 行，其余滚出视口；
   - 已结束的行仍保留在 DOM 中，只是滚出视口。
   - 搜索过滤后的可见行参与索引计算；被搜索隐藏的行不占行号。
 - **`hide`（直接消失）**
-  - 给 `end < t` 的可见行加 `display: none`，让其折叠；
+  - 给 `end < t` 的可见行加 `display: none`，让其折叠；`keepRowsAbove > 0` 时，最近结束的 `keepRowsAbove` 行保留显示；
   - `scrollTop` 归零，第一个仍在时长内的行自然贴顶；
   - 时间回退时被隐藏的行重新出现。
-- `rowHeight = rows[0].getBoundingClientRect().height || 32`；测试环境固定回退 32。
+- 行高优先取 `row.height`；未显式定义时用 DOM 实测高度，测试环境回退 32。
 - `lanes` 的行是轨道，不参与纵向跟随；开启跟随时组件不应停留在多轨布局。
+
+### 7.4 播放状态 `playing`
+
+- `playing` 默认 `false`；只表示播放状态，不驱动 `currentTime`。
+- `playing === true` 且 `fixedPlayhead === true` 或 `followMode !== 'off'` 时，滚动容器纵向锁定（`overflow-y: hidden`，`data-wf-locked="true"`），隐藏纵向滚动条并禁止手动纵向滚动；程序化的跟随滚动仍生效。
+- `playing === false` 时恢复 `overflow-y: auto`，纵向可自由滚动。
+- 纵向锁定不影响横向：固定播放头仍可按 `currentTime` 自动平移。
 
 ## 8. 标尺与网格
 
@@ -322,7 +351,7 @@ scrollLeft = max(0, labelWidth + lead + x(t) - playheadX)
 - 文案用 §3.3 的 `formatTime`；网格 `background-size = step * pxPerUnit`，`background-position-x = (first - viewStart) * pxPerUnit`，保证网格与刻度对齐。
 - 标尺只展示 `[viewStart, viewEnd]` 内的刻度；`viewEnd` 右侧的渲染区域用 `--wf-dim` 压暗，不显示刻度文案。
 - 标尺 `sticky top`，标签列 `sticky left`，背景必须不透明。
-- 测试钩子：`data-wf="scroller" | "canvas" | "ruler" | "ruler-track" | "row" | "bar" | "cursor" | "dim" | "empty" | "detail"`，并加 `data-wf-layout="lanes" | "sequence"`。
+- 测试钩子：`data-wf="scroller" | "canvas" | "ruler" | "ruler-track" | "row" | "bar" | "cursor" | "dim" | "empty" | "detail"`，并加 `data-wf-layout="lanes" | "sequence"`、`data-wf-locked="true" | "false"` 与 `data-wf="splitter"`。
 
 ## 9. 搜索
 
@@ -353,7 +382,9 @@ scrollLeft = max(0, labelWidth + lead + x(t) - playheadX)
 | `--wf-active` | 活跃片段描边 |
 | `--wf-cursor` | 游标 |
 | `--wf-dim` | 视图外压暗层 |
-| `--wf-row-h` / `--wf-ruler-h` | 行高 / 标尺高 |
+| `--wf-row-h` / `--wf-ruler-h` | 默认行高（可被 `rowHeight` / 片段 / 轨道覆盖） / 标尺高 |
+| `--wf-scroll` / `--wf-scroll-hover` | 滚动条滑块 / 滑块 hover |
+| `--wf-bar-inset` | 条形上下留白，默认 7px；条形高度随行高自适应 |
 
 - 未指定 `color` 时按 `clip.color ?? var(--wf-clip-{(index % 6) + 1})` 取色。
 - 深色：`prefers-color-scheme: dark` 覆盖背景、边框、文字、网格、压暗层。宽度 ≤ 720px：时间栏换行、搜索框占满。
@@ -403,6 +434,12 @@ clips: A{index:0, 0–1}, B{index:1, 1–2}, C{index:2, 1–3}
 | 16 | 压暗层 | `viewEnd` 右侧存在 `data-wf="dim"`，宽度等于超出像素；点击不阻挡详情 |
 | 17 | labels 覆盖 | 传入 `labels.search` / `labels.noMatch` 后文案生效 |
 | 18 | 搜索 / 缩放开关 | `showSearch=false` 时不渲染搜索框；`showZoom=false` 时不渲染缩放按钮；受控 `zoom` 改变条形宽度 |
+| 19 | 标签列宽度 | 默认 220；`labelWidth` 生效；拖拽把手改变宽度并回调；`resizableLabel=false` 时不渲染把手 |
+| 20 | `keepRowsAbove` | `scroll` 下按累计行高滚动到 `anchor = max(rowIndex - keepRowsAbove, 0)`；`hide` 下最近结束的 N 行保留 |
+| 21 | number 格式 | `1.5 → 1.500`，时间栏当前 / 总时间同样固定 3 位小数 |
+| 22 | `playing` 锁定 | `playing + fixedPlayhead` 或 `playing + followMode` 时 `data-wf-locked="true"`；默认 / 暂停时为 `false` |
+| 23 | 行高 / 块高 | `clip.height` 只改条形高度；`track.height` / `rowHeight` 改行高；轨道行高参与跟随滚动累计偏移 |
+| 24 | `rowGap` | `.rows` 的 `row-gap` 生效；跟随偏移累计行高 + 行间距 |
 
 测试注意：`bun test` 下 `@testing-library/react` 不会可靠自动 cleanup，需显式 `afterEach(cleanup)`；`happy-dom` 下 `clientWidth` / `offsetHeight` 为 0，相关用例需 mock 或在公式中回退。
 

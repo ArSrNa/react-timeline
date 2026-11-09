@@ -82,15 +82,21 @@ export default function App() {
     const audioRef = useRef<HTMLAudioElement>(null)
     const [currentTime, setCurrentTime] = useState(0)
     const [duration, setDuration] = useState(0)
+    const [playing, setPlaying] = useState(false)
     const [vertical, setVertical] = useState(false)
     const [showOld, setShowOld] = useState(false)
-    const [layout, setLayout] = useState<'lanes' | 'sequence'>('lanes')
+    const [layout, setLayout] = useState<'lanes' | 'sequence'>('sequence')
     const [viewDuration, setViewDuration] = useState(0)
-    const [zoom, setZoom] = useState(1.5)
+    const [zoom, setZoom] = useState(10)
     const [format, setFormat] = useState('clock')
-    const [fixedPlayhead, setFixedPlayhead] = useState(false)
-    const [playheadPosition, setPlayheadPosition] = useState(0.5)
-    const [followMode, setFollowMode] = useState<'off' | 'scroll' | 'hide'>('off')
+    const [fixedPlayhead, setFixedPlayhead] = useState(true)
+    const [playheadPosition, setPlayheadPosition] = useState(0.3)
+    const [followMode, setFollowMode] = useState<'off' | 'scroll' | 'hide'>('hide')
+    const [keepRowsAbove, setKeepRowsAbove] = useState(1)
+    const [resizableLabel, setResizableLabel] = useState(true)
+    const [labelWidth, setLabelWidth] = useState(220)
+    const [rowHeight, setRowHeight] = useState<number | undefined>(undefined)
+    const [rowGap, setRowGap] = useState(0)
 
     useEffect(() => {
         const audio = audioRef.current
@@ -113,12 +119,14 @@ export default function App() {
         }
 
         const start = () => {
+            setPlaying(true)
             if (rafId !== null) return
             sync()
             rafId = requestAnimationFrame(loop)
         }
 
         const stop = () => {
+            setPlaying(false)
             if (rafId !== null) {
                 cancelAnimationFrame(rafId)
                 rafId = null
@@ -374,6 +382,70 @@ export default function App() {
                     <option value='hide'>直接消失</option>
                 </select>
             </label>
+
+            <label style={labelStyle}>
+                上方保留
+                <select
+                    value={keepRowsAbove}
+                    onChange={event => setKeepRowsAbove(Number(event.target.value))}
+                >
+                    {[0, 1, 2, 3].map(count => <option key={count} value={count}>
+                        {count} 行
+                    </option>)}
+                </select>
+            </label>
+
+            <label style={labelStyle}>
+                标签列
+                <input
+                    type='number'
+                    min={120}
+                    max={480}
+                    step={20}
+                    value={labelWidth}
+                    style={{ width: 64 }}
+                    onChange={event => setLabelWidth(
+                        Math.min(Math.max(Number(event.target.value) || 120, 120), 480)
+                    )}
+                />
+            </label>
+
+            <label style={labelStyle}>
+                行高
+                <select
+                    value={rowHeight ?? 0}
+                    onChange={event => {
+                        const value = Number(event.target.value)
+                        setRowHeight(value > 0 ? value : undefined)
+                    }}
+                >
+                    <option value={0}>默认</option>
+                    <option value={28}>28px</option>
+                    <option value={36}>36px</option>
+                    <option value={44}>44px</option>
+                </select>
+            </label>
+
+            <label style={labelStyle}>
+                行间距
+                <select
+                    value={rowGap}
+                    onChange={event => setRowGap(Number(event.target.value))}
+                >
+                    {[0, 4, 8, 12].map(gap => <option key={gap} value={gap}>
+                        {gap}px
+                    </option>)}
+                </select>
+            </label>
+
+            <label style={labelStyle}>
+                <input
+                    type='checkbox'
+                    checked={resizableLabel}
+                    onChange={event => setResizableLabel(event.target.checked)}
+                />
+                拖拽侧栏
+            </label>
         </div>
 
         <section style={sectionStyle}>
@@ -393,8 +465,15 @@ export default function App() {
                 formatTime={formatOption.format}
                 fixedPlayhead={fixedPlayhead}
                 playheadPosition={playheadPosition}
+                playing={playing}
                 followMode={followMode}
+                keepRowsAbove={keepRowsAbove}
                 zoom={zoom}
+                labelWidth={labelWidth}
+                resizableLabel={resizableLabel}
+                onLabelWidthChange={setLabelWidth}
+                rowHeight={rowHeight}
+                rowGap={rowGap}
                 showSearch={false}
                 showZoom={false}
                 height={420}
@@ -415,8 +494,15 @@ export default function App() {
                 formatTime={formatOption.format}
                 fixedPlayhead={fixedPlayhead}
                 playheadPosition={playheadPosition}
+                playing={playing}
                 followMode={followMode}
+                keepRowsAbove={keepRowsAbove}
                 zoom={zoom}
+                labelWidth={labelWidth}
+                resizableLabel={resizableLabel}
+                onLabelWidthChange={setLabelWidth}
+                rowHeight={rowHeight}
+                rowGap={rowGap}
                 showSearch={false}
                 showZoom={false}
                 showTime={false}
@@ -427,7 +513,10 @@ export default function App() {
         <p style={hintStyle}>
             点击标尺定位 <code>currentTime</code>；点击片段只打开详情，不移动播放头。
             把视图调到 60s / 120s / 180s 可以看到超出部分压暗，游标仍停在视图终点。
-            开启首行跟随后按时间平铺，已结束的行会上滚或消失。
+            开启首行跟随后按时间平铺，已结束的行会上滚或消失，“上方保留”控制目标行上方留几行。
+            拖动标签列右边缘可以调整宽度，也可以用“标签列”输入框直接定义。
+            播放时固定播放头 / 首行跟随会锁定纵向滚动，暂停后恢复自由滚动。
+            行高、行间距可整体调整；需要单独控制某个块的高度时用片段的 `height`。
         </p>
 
         <label style={{ ...labelStyle, marginTop: 16 }}>
