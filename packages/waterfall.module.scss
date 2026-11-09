@@ -1,0 +1,505 @@
+// TraceWaterfall 的样式全部走 CSS 变量，使用方覆盖变量即可换肤
+.waterfall,
+.popover {
+    --wf-bg: #ffffff;
+    --wf-sub: #f7f8fa;
+    --wf-hover: #f1f3f8;
+    --wf-border: #e6e8ee;
+    --wf-text: #1f2430;
+    --wf-muted: #7a8194;
+    --wf-grid: rgba(31, 36, 48, 0.07);
+    --wf-clip-1: #6366f1;
+    --wf-clip-2: #0d9488;
+    --wf-clip-3: #d97706;
+    --wf-clip-4: #e11d48;
+    --wf-clip-5: #0284c7;
+    --wf-clip-6: #7c3aed;
+    --wf-active: #6366f1;
+    --wf-cursor: #ef4444;
+    --wf-dim: rgba(31, 36, 48, 0.28);
+    --wf-row-h: 32px;
+    --wf-ruler-h: 30px;
+}
+
+@media (prefers-color-scheme: dark) {
+
+    .waterfall,
+    .popover {
+        --wf-bg: #14161c;
+        --wf-sub: #191c24;
+        --wf-hover: #1f2330;
+        --wf-border: #2a2f3a;
+        --wf-text: #e7eaf3;
+        --wf-muted: #8b93a7;
+        --wf-grid: rgba(255, 255, 255, 0.07);
+        --wf-active: #818cf8;
+        --wf-dim: rgba(0, 0, 0, 0.42);
+    }
+}
+
+.waterfall {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    overflow: hidden;
+    border: 1px solid var(--wf-border);
+    border-radius: 12px;
+    background: var(--wf-bg);
+    color: var(--wf-text);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+    font-size: 12px;
+    line-height: 1.4;
+    box-sizing: border-box;
+
+    *,
+    *::before,
+    *::after {
+        box-sizing: border-box;
+    }
+
+    button {
+        font: inherit;
+        color: inherit;
+    }
+}
+
+.timebar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 18px;
+    padding: 7px 12px;
+    border-bottom: 1px solid var(--wf-border);
+    background: var(--wf-sub);
+    font-variant-numeric: tabular-nums;
+}
+
+.timeItem {
+    color: var(--wf-muted);
+    white-space: nowrap;
+
+    b {
+        color: var(--wf-text);
+        font-weight: 600;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-variant-numeric: tabular-nums;
+    }
+}
+
+.toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 8px;
+    border-bottom: 1px solid var(--wf-border);
+}
+
+.search {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex: 1 1 160px;
+    min-width: 140px;
+    max-width: 280px;
+    margin-left: auto;
+
+    input {
+        width: 100%;
+        height: 26px;
+        padding: 0 40px 0 8px;
+        border: 1px solid var(--wf-border);
+        border-radius: 6px;
+        background: var(--wf-sub);
+        color: var(--wf-text);
+        font: inherit;
+        outline: none;
+
+        &:focus {
+            border-color: var(--wf-active);
+        }
+
+        &::placeholder {
+            color: var(--wf-muted);
+        }
+    }
+
+    kbd {
+        position: absolute;
+        right: 6px;
+        padding: 1px 4px;
+        border: 1px solid var(--wf-border);
+        border-radius: 4px;
+        color: var(--wf-muted);
+        font-family: inherit;
+        font-size: 10px;
+        pointer-events: none;
+    }
+}
+
+.zoom {
+    display: flex;
+    gap: 2px;
+    padding: 2px;
+    border: 1px solid var(--wf-border);
+    border-radius: 6px;
+    background: var(--wf-sub);
+}
+
+.zoomItem {
+    min-width: 34px;
+    padding: 2px 6px;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--wf-muted);
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+
+    &:hover {
+        color: var(--wf-text);
+    }
+}
+
+.zoomActive {
+    background: var(--wf-bg);
+    color: var(--wf-text);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+.scroller {
+    position: relative;
+    overflow: auto;
+    overscroll-behavior: contain;
+    max-height: 100%;
+}
+
+.canvas {
+    position: relative;
+    min-width: 100%;
+}
+
+.ruler {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    height: var(--wf-ruler-h);
+    background: var(--wf-bg);
+    border-bottom: 1px solid var(--wf-border);
+}
+
+.rulerLabel {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    flex: 0 0 auto;
+    padding: 0 8px;
+    background: var(--wf-bg);
+    border-right: 1px solid var(--wf-border);
+    color: var(--wf-muted);
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+.rulerTrack {
+    position: relative;
+    flex: 0 0 auto;
+    height: 100%;
+}
+
+.rulerDim {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 0;
+    background: var(--wf-dim);
+    pointer-events: none;
+}
+
+.tick {
+    position: absolute;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding-left: 5px;
+    border-left: 1px solid var(--wf-grid);
+    color: var(--wf-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+// 层级：grid 0 < bar 1 < dim 2 < cursor 3 < label 4 < ruler 5
+// cursor 必须低于 label，横向滚动到标签列下方时才会被遮住
+.grid {
+    position: absolute;
+    top: var(--wf-ruler-h);
+    bottom: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-image: linear-gradient(to right, var(--wf-grid) 0 1px, transparent 1px);
+    background-repeat: repeat;
+}
+
+.rows {
+    position: relative;
+}
+
+.row {
+    display: flex;
+    height: var(--wf-row-h);
+
+    &:hover .label {
+        background: var(--wf-hover);
+    }
+
+    &:hover .track {
+        background: var(--wf-hover);
+    }
+}
+
+.label {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    padding-right: 8px;
+    padding-left: 8px;
+    background: var(--wf-bg);
+    border-right: 1px solid var(--wf-border);
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.dot {
+    flex: 0 0 auto;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+}
+
+.name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tag {
+    flex: 0 0 auto;
+    max-width: 84px;
+    padding: 0 5px;
+    border-radius: 4px;
+    background: var(--wf-sub);
+    color: var(--wf-muted);
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.duration {
+    flex: 0 0 auto;
+    color: var(--wf-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.mark {
+    padding: 0;
+    border-radius: 2px;
+    background: rgba(245, 158, 11, 0.32);
+    color: inherit;
+}
+
+.track {
+    position: relative;
+    flex: 0 0 auto;
+    height: 100%;
+}
+
+.bar {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    height: 14px;
+    min-width: 2px;
+    padding: 0 5px;
+    border: 0;
+    border-radius: 4px;
+    transform: translateY(-50%);
+    color: #fff;
+    font-size: 10px;
+    text-align: left;
+    cursor: pointer;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    &:hover {
+        filter: brightness(1.08);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--wf-text);
+        outline-offset: 1px;
+    }
+}
+
+.barActive {
+    outline: 2px solid var(--wf-active);
+    outline-offset: 1px;
+}
+
+.barText {
+    pointer-events: none;
+}
+
+.idTag {
+    padding: 0 3px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.18);
+    font-size: 10px;
+}
+
+.dim {
+    position: absolute;
+    top: var(--wf-ruler-h);
+    bottom: 0;
+    z-index: 2;
+    background: var(--wf-dim);
+    pointer-events: none;
+}
+
+.cursor {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 3;
+    width: 1px;
+    background: var(--wf-cursor);
+    pointer-events: none;
+
+    &::before {
+        content: "";
+        position: absolute;
+        top: calc(var(--wf-ruler-h) - 5px);
+        left: -3px;
+        border-top: 5px solid var(--wf-cursor);
+        border-left: 3.5px solid transparent;
+        border-right: 3.5px solid transparent;
+    }
+}
+
+.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 140px;
+    color: var(--wf-muted);
+}
+
+.popover {
+    position: fixed;
+    z-index: 9999;
+    width: 300px;
+    max-width: calc(100vw - 24px);
+    max-height: 60vh;
+    padding: 10px 12px;
+    border: 1px solid var(--wf-border);
+    border-radius: 10px;
+    background: var(--wf-bg);
+    color: var(--wf-text);
+    box-shadow: 0 12px 32px rgba(15, 20, 30, 0.18);
+    overflow: auto;
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC", sans-serif;
+    font-size: 12px;
+    line-height: 1.5;
+    box-sizing: border-box;
+}
+
+.popoverHead {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+
+    strong {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 13px;
+    }
+}
+
+.close {
+    flex: 0 0 auto;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--wf-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+
+    &:hover {
+        background: var(--wf-hover);
+        color: var(--wf-text);
+    }
+}
+
+.kv {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    gap: 2px 8px;
+    margin: 0;
+
+    dt {
+        color: var(--wf-muted);
+    }
+
+    dd {
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.raw {
+    margin: 8px 0 0;
+    padding: 8px;
+    border-radius: 6px;
+    background: var(--wf-sub);
+    color: var(--wf-muted);
+    font-size: 11px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 180px;
+    overflow: auto;
+}
+
+@media (max-width: 720px) {
+    .search {
+        flex: 1 1 100%;
+        max-width: none;
+        margin-left: 0;
+    }
+}

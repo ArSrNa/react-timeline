@@ -14,6 +14,8 @@
 
 # Breaking Changes
 
+3.0.0 新增 `TraceWaterfall` 瀑布时间线；现有 `Timeline` / `Vertical` 的 API 与行为不变。
+
 2.0以后，数据结构发生改变，需要重新更新代码
 
 同时之后项目使用Vibe Coding，实现功能请参考`.trae/commands/code.md`
@@ -35,12 +37,12 @@ bun i react-av-timeline
 首先引入组件，由于css未注入，需要手动引入css
 
 ````jsx
-import { Timeline } from 'react-av-timeline';
+import Timeline from 'react-av-timeline';
 import 'react-av-timeline/dist/index.css';
 ````
 
 ````jsx
-<Component items={[{
+<Timeline items={[{
         time:1,
         content:'这是第一秒展示的内容',
         style:{
@@ -84,6 +86,39 @@ import 'react-av-timeline/dist/index.css'
         content:'这是第69秒展示的内容'
     }]} currentTime={currentTime} scale={10} totalTime={100} />
 ````
+
+## 瀑布时间线（TraceWaterfall）
+
+用于音视频导播 / 剪辑：多轨、多片段、时间码、固定播放头、首行跟随。片段只有 `start` + `duration`，相同 `index` 即同一轨。
+
+````jsx
+import { TraceWaterfall } from 'react-av-timeline';
+import 'react-av-timeline/dist/index.css';
+
+const clips = [
+    { id: 'lyric-0', name: '船 摇啊摇', index: 0, start: 10.473, duration: 1.766 },
+    { id: 'lyric-1', name: '摇到陌生的远方摇断了船桨', index: 0, start: 12.239, duration: 3.848 }
+]
+
+<TraceWaterfall
+    clips={clips}
+    tracks={[{ index: 0, name: '歌词 1' }]}
+    currentTime={currentTime}
+    onCurrentTimeChange={setCurrentTime}
+    formatTime={{ type: 'clock', millisecond: true }}
+    fixedPlayhead
+    playheadPosition={0.5}
+    height={420}
+/>
+````
+
+要点：
+
+- `viewStart` / `viewDuration` 定义可 seek 的视图范围；晚于 `viewEnd` 的片段仍会渲染，但会压暗，`currentTime` 不会越过 `viewEnd`。
+- `fixedPlayhead` 会在视图前后补留白，游标从起点到终点都停在 `playheadPosition`。
+- `followMode` 非 `off` 时强制 `sequence` 平铺；支持 `scroll` 上滚与 `hide` 直接消失。
+- `layout` 默认 `lanes`；`zoom` 受控、`defaultZoom` 非受控。
+- 文案通过 `labels` 覆盖；颜色通过 CSS 变量 `--wf-*` 覆盖。
 
 # 应用
 
@@ -146,6 +181,66 @@ interface itemsType {
     height?: CSSProperties['height']
 }
 ````
+
+## 瀑布时间线 (TraceWaterfall)
+
+````typescript
+interface TimelineClip {
+    id: string
+    name?: string
+    index: number
+    start: number
+    duration: number
+    label?: ReactNode
+    color?: string
+    style?: CSSProperties
+    meta?: Record<string, unknown>
+}
+
+interface TraceWaterfallProps {
+    clips: TimelineClip[]
+    tracks?: { index: number, name?: string }[]
+    layout?: 'lanes' | 'sequence'
+    unit?: 'ms' | 's'
+    viewStart?: number
+    viewDuration?: number
+    currentTime?: number
+    onCurrentTimeChange?: (time: number) => void
+    formatTime?: TimeFormat | ((value: number) => string)
+    formatDuration?: (value: number) => string
+    fixedPlayhead?: boolean
+    playheadPosition?: number
+    followMode?: 'off' | 'scroll' | 'hide'
+    zoom?: number
+    defaultZoom?: number
+    onZoomChange?: (zoom: number) => void
+    labelWidth?: number
+    height?: CSSProperties['height']
+    minTickGap?: number
+    showTime?: boolean
+    showDetail?: boolean
+    showSearch?: boolean
+    showZoom?: boolean
+    emptyText?: string
+    labels?: Partial<TimelineLabels>
+    onClipClick?: (clip: TimelineClip) => void
+    className?: string
+    style?: CSSProperties
+}
+````
+
+````typescript
+type TimeFormat =
+    | { type: 'number' }
+    | { type: 'clock', millisecond?: boolean, offset?: number }
+    | { type: 'smpte', fps: number, offset?: number }
+````
+
+- `formatTime` 用于绝对时间（应用 `offset`），`formatDuration` 用于时长（不应用 `offset`）。
+- `currentTime` 受控；点击标尺触发 `onCurrentTimeChange`，点击片段只打开详情。
+- `showSearch` / `showZoom` 可关闭内置搜索框与缩放按钮；关闭后可用受控 `zoom` 在外部控制缩放。
+- `labels` 可覆盖 `search` / `noMatch` / `empty` / `current` / `total` / `track` / `start` / `end` / `duration` / `close` / `zoom` / `lanesColumn` / `sequenceColumn`。
+- 纯函数 `getActiveAt`、`getTopActiveAt`、`getClipEnd`、`resolveRange`、`buildRows`、`buildTicks`、`formatTime`、`formatDuration` 也可从包中导入。
 
 ## 重叠规则 (Level)
 - **水平模式**：当多个 items 时间重叠时，系统会自动将它们纵向排列。你可以通过 `level` 属性手动强制指定某个 item 所在的行数（Level 0 为最上方）。
