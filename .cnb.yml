@@ -62,31 +62,6 @@ $:
             diff_pct: DIFF_LINES
         - name: result
           script: echo echo "LINES $LINES DIFF_LINES $DIFF_LINES"
-    自动打tag:
-      docker:
-        image: docker.cnb.cool/arsrna/dev-image/nodejs
-      stages:
-        - name: 按 package.json 的 version 打 tag
-          script: |
-            set -e
-            DEFAULT_BRANCH="${CNB_DEFAULT_BRANCH:-main}"
-            if [ "$CNB_BRANCH" != "$DEFAULT_BRANCH" ]; then
-              echo "当前分支 $CNB_BRANCH 不是默认分支 $DEFAULT_BRANCH，跳过"
-              exit 0
-            fi
-
-            VERSION=$(node -p "require('./package.json').version")
-            echo "package.json version: $VERSION"
-
-            AUTH_URL="https://cnb:${CNB_TOKEN}@${CNB_REPO_URL_HTTPS#https://}"
-            if [ -n "$(git ls-remote --tags "$AUTH_URL" "refs/tags/$VERSION")" ]; then
-              echo "Tag $VERSION 已存在，跳过"
-              exit 0
-            fi
-
-            git tag "$VERSION"
-            git push "$AUTH_URL" "refs/tags/$VERSION"
-            echo "已推送 Tag $VERSION，将触发 tag_push 发版流水线"
 
   # tag push 时触发
   tag_push:
@@ -118,3 +93,29 @@ $:
             registry: https://npm.cnb.cool/arsrna/os-npm/-/packages/
             folder: ./
             fail_on_version_conflict: false
+
+# 自动生成 Tag：仓库 Tag 列表页点击「自动生成 Tag」触发
+# 不走默认模板（semantic-release 按提交信息推导版本），直接取 package.json 的 version 打 Tag
+# 注意：auto_tag 必须挂在默认分支名下，写在 $ 下会被忽略
+main:
+  auto_tag:
+    - docker:
+        image: docker.cnb.cool/arsrna/dev-image/nodejs
+      stages:
+        - name: 按 package.json 版本打 Tag
+          script: |
+            set -e
+            VERSION=$(node -p "require('./package.json').version")
+            TAG="$VERSION" # 与历史 Tag 保持一致（3.0.2 这类，无 v 前缀），需要 v 前缀改成 "v$VERSION"
+            echo "package.json version: $VERSION"
+
+            git fetch --tags --force
+
+            if git rev-parse -q --verify "refs/tags/$TAG" >/dev/null; then
+              echo "Tag $TAG 已存在，跳过"
+              exit 0
+            fi
+
+            git -c user.name="cnb-bot" -c user.email="cnb-bot@cnb.cool" tag -a "$TAG" -m "Release $TAG"
+            git push origin "refs/tags/$TAG"
+            echo "已推送 Tag $TAG"
