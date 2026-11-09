@@ -1,6 +1,6 @@
 {
   "name": "react-av-timeline",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "author": "ArSrNa",
   "repository": {
     "type": "git",
@@ -43,7 +43,7 @@
   "bugs": {
     "url": "https://cnb.cool/arsrna/os/react-timeline/-/issues"
   },
-  "description": "React 音视频时间线组件",
+  "description": "React 音视频时间线组件，含导播瀑布时间线",
   "files": [
     "dist",
     "image"
@@ -53,6 +53,7 @@
     "slider",
     "react",
     "timeline",
+    "waterfall",
     "audio",
     "video",
     "visualize"

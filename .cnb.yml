@@ -62,6 +62,31 @@ $:
             diff_pct: DIFF_LINES
         - name: result
           script: echo echo "LINES $LINES DIFF_LINES $DIFF_LINES"
+    自动打tag:
+      docker:
+        image: docker.cnb.cool/arsrna/dev-image/nodejs
+      stages:
+        - name: 按 package.json 的 version 打 tag
+          script: |
+            set -e
+            DEFAULT_BRANCH="${CNB_DEFAULT_BRANCH:-main}"
+            if [ "$CNB_BRANCH" != "$DEFAULT_BRANCH" ]; then
+              echo "当前分支 $CNB_BRANCH 不是默认分支 $DEFAULT_BRANCH，跳过"
+              exit 0
+            fi
+
+            VERSION=$(node -p "require('./package.json').version")
+            echo "package.json version: $VERSION"
+
+            AUTH_URL="https://cnb:${CNB_TOKEN}@${CNB_REPO_URL_HTTPS#https://}"
+            if [ -n "$(git ls-remote --tags "$AUTH_URL" "refs/tags/$VERSION")" ]; then
+              echo "Tag $VERSION 已存在，跳过"
+              exit 0
+            fi
+
+            git tag "$VERSION"
+            git push "$AUTH_URL" "refs/tags/$VERSION"
+            echo "已推送 Tag $VERSION，将触发 tag_push 发版流水线"
 
   # tag push 时触发
   tag_push:

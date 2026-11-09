@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AV Timeline MVP</title>
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <main class="page">
+    <header class="page-head">
+      <div class="brand">
+        <h1>AV Timeline <span class="badge">MVP</span></h1>
+        <p>音视频导播时间线 · 数据来自场景切换表（<code>time</code> + <code>sceneName</code>）</p>
+      </div>
+
+      <div class="head-actions">
+        <div class="seg" id="layoutSeg" role="tablist" aria-label="行布局">
+          <button type="button" data-layout="lanes" class="active" role="tab" aria-selected="true">多轨</button>
+          <button type="button" data-layout="sequence" role="tab" aria-selected="false">平铺</button>
+        </div>
+
+        <label class="select">
+          <span>格式</span>
+          <select id="formatSelect" aria-label="时间格式">
+            <option value="clock">00:00:01.000</option>
+            <option value="number">纯数字</option>
+            <option value="smpte">SMPTE 25fps</option>
+          </select>
+        </label>
+
+        <button type="button" id="themeBtn" class="ghost">浅色</button>
+      </div>
+    </header>
+
+    <section class="waterfall" id="wf">
+      <div class="timebar">
+        <button type="button" id="playBtn" class="play">播放</button>
+        <span class="now-time" id="nowTime">00:00:05.000</span>
+        <span class="time-sep">/</span>
+        <span class="total-time" id="totalTime">00:00:36.000</span>
+        <input id="timeSlider" type="range" min="0" max="36" step="0.01" value="5" aria-label="currentTime" />
+      </div>
+
+      <div class="toolbar">
+        <div class="search">
+          <input id="searchInput" type="search" placeholder="搜索片段" aria-label="搜索片段" autocomplete="off" />
+          <kbd>⌘F</kbd>
+        </div>
+        <div class="zoom" id="zoom" role="group" aria-label="缩放"></div>
+      </div>
+
+      <div class="options">
+        <label class="opt"><input type="checkbox" id="fixedPlayhead" /> 固定播放头</label>
+        <label class="opt">
+          <span>位置</span>
+          <select id="playheadPos" aria-label="播放头位置">
+            <option value="0.3">30%</option>
+            <option value="0.5" selected>50%</option>
+            <option value="0.7">70%</option>
+          </select>
+        </label>
+        <label class="opt">
+          <span>首行跟随</span>
+          <select id="followMode" aria-label="首行跟随模式">
+            <option value="off" selected>关闭</option>
+            <option value="scroll">上滚</option>
+            <option value="hide">直接消失</option>
+          </select>
+        </label>
+        <span class="opt-hint">首行跟随需要平铺布局：结束的行上滚或直接消失，第一个仍在时长内的行贴顶（多轨模式下行是轨道，不跟随）</span>
+      </div>
+
+      <div class="scroller" id="scroller">
+        <div class="canvas" id="canvas"></div>
+      </div>
+    </section>
+
+    <p class="hint">
+      点击标尺定位 <code>currentTime</code>；点击片段只打开详情，不移动播放头。
+      每个切换点是一个片段，终点取下一个切换点；「多轨」按 <code>sceneName</code> 分行，
+      「平铺」按时间顺序一行一个片段，开启首行跟随后已结束的行会上滚或消失。
+    </p>
+  </main>
+
+  <div class="popover" id="popover" hidden role="dialog" aria-modal="false">
+    <div class="pop-head">
+      <span class="dot" id="popDot"></span>
+      <strong id="popTitle"></strong>
+      <button type="button" class="close" id="popClose" aria-label="关闭详情">×</button>
+    </div>
+    <dl class="kv" id="popKv"></dl>
+    <pre class="raw" id="popRaw" hidden></pre>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>
